@@ -4,12 +4,20 @@ from typing import Dict
 import base64
 import json
 import os
+import audioop
+from dotenv import load_dotenv
+
+from assemblyai_client import AssemblyAIClient
+
+load_dotenv()
 
 app = FastAPI()
 
 REPEAT_THRESHOLD = 50
 
-# MediaStream class to handle WebSocket connections
+aai_api = os.getenv('ASSEMBLYAI_API_KEY')
+aai_client = AssemblyAIClient(api_key=aai_api)
+
 class MediaStream:
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
@@ -22,23 +30,43 @@ class MediaStream:
         if not self.connected:
             return
 
-        if data["event"] == "connected":
+        event = data.get("event")
+
+        if event == "connected":
             print(f"From Twilio: Connected event received: {data}")
-        elif data["event"] == "start":
+        elif event == "start":
             print(f"From Twilio: Start event received: {data}")
-        elif data["event"] == "media":
+        elif event == "media":
             if not self.has_seen_media:
                 print(f"From Twilio: Media event received: {data}")
                 self.has_seen_media = True
 
             # Store media messages
             self.messages.append(data)
+
+            # Check if we reached the threshold
             if len(self.messages) >= REPEAT_THRESHOLD:
                 print(f"From Twilio: {len(self.messages)} omitted media messages")
+
+                # Extract µ-law audio from messages
+                payloads = [base64.b64decode(msg["media"]["payload"]) for msg in self.messages]
+
+                # Convert µ-law to linear PCM for transcription
+                linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
+                raw_pcm = b"".join(linear_payloads)
+
+                # Transcribe the raw PCM audio
+                try:
+                    transcript_text = aai_client.transcribe_audio(raw_pcm)
+                    print("AssemblyAI transcription:", transcript_text)
+                except Exception as e:
+                    print("Error during transcription:", e)
+
+                # Now send the repeated audio back (in the original µ-law format)
                 await self.repeat()
-        elif data["event"] == "mark":
+        elif event == "mark":
             print(f"From Twilio: Mark event received: {data}")
-        elif data["event"] == "close":
+        elif event == "close":
             print(f"From Twilio: Close event received: {data}")
             await self.close()
 
@@ -46,15 +74,17 @@ class MediaStream:
         if not self.connected:
             return
 
+        # We still have self.messages containing the last batch
         messages = self.messages[:]
         self.messages = []
         stream_sid = messages[0]["streamSid"]
 
-        # Combine all the media payloads
+        # Combine all the µ-law payloads (no format conversion needed for repeat)
         payloads = [base64.b64decode(msg["media"]["payload"]) for msg in messages]
         combined_payload = base64.b64encode(b"".join(payloads)).decode("utf-8")
 
         try:
+            # Send the combined media payload
             message = {
                 "event": "media",
                 "streamSid": stream_sid,
@@ -62,6 +92,7 @@ class MediaStream:
             }
             await self.websocket.send_text(json.dumps(message))
 
+            # Send a mark event, just like before
             mark_message = {
                 "event": "mark",
                 "streamSid": stream_sid,
@@ -93,13 +124,11 @@ class MediaStream:
 # Dictionary to store active WebSocket connections
 media_streams: Dict[str, MediaStream] = {}
 
-
 @app.post("/twiml")
 async def serve_twiml():
     """Serve the TwiML XML."""
     xml_path = "websocket-basic/templates/streams.xml"  # Update this path
     return FileResponse(xml_path, media_type="application/xml")
-
 
 @app.websocket("/streams")
 async def websocket_endpoint(websocket: WebSocket):
@@ -118,7 +147,8 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         print(f"From Twilio: Connection disconnected: {sid}")
         if sid in media_streams:
-            await media_streams[sid].close()
+            if media_streams[sid].connected:
+                await media_streams[sid].close()
             del media_streams[sid]
     except Exception as e:
         print(f"Error in WebSocket connection: {e}")
