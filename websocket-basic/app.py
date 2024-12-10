@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from typing import Dict
 import base64
 import json
+import asyncio
 import os
 import audioop
 import time
@@ -73,26 +74,23 @@ class MediaStream:
         self.messages = []
         stream_sid = messages[0]["streamSid"]
 
-        # Decode from base64 μ-law
+        # Convert μ-law to linear PCM and transcribe
         payloads = [base64.b64decode(msg["media"]["payload"]) for msg in messages]
-
-        # Convert μ-law to linear PCM
         linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
         raw_pcm = b"".join(linear_payloads)
 
-        # Transcribe using AssemblyAI
         try:
             transcript_text = self.aai_client.transcribe_audio(raw_pcm)
             print("AssemblyAI transcription:", transcript_text)
         except Exception as e:
             print("Error during transcription:", e)
 
-        # Convert linear PCM back to μ-law before sending
+        # Convert back to μ-law
         mu_law_data = audioop.lin2ulaw(raw_pcm, 2)
         combined_payload = base64.b64encode(mu_law_data).decode("utf-8")
 
         try:
-            # Send the media event back to Twilio
+            # Send one media message back
             media_message = {
                 "event": "media",
                 "streamSid": stream_sid,
@@ -100,21 +98,22 @@ class MediaStream:
             }
             await self.websocket.send_text(json.dumps(media_message))
 
-            # Send a mark event, just like your working code did before
+            # Send a mark event
             mark_message = {
                 "event": "mark",
                 "streamSid": stream_sid,
-                "mark": {"name": "Transcribed playback"}
+                "mark": {"name": "TranscribedPlayback"}
             }
             await self.websocket.send_text(json.dumps(mark_message))
+
+            # Wait a moment to allow Twilio to handle playback
+            await asyncio.sleep(1)
 
             print("Playback done. Closing the connection.")
             await self.close()
         except Exception as e:
             print(f"Error while sending message: {e}")
             self.connected = False
-
-
 
     async def close(self):
         if self.connected:
