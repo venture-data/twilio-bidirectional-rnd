@@ -19,9 +19,13 @@ class MediaStream:
         self.connected = True
         self.silence_count = 0  # Track consecutive silent chunks
         self.received_audio = False  # True once we detect any speech
+        self.processing_finished = False  # Once we've processed and played back audio
 
     async def process_message(self, data: dict):
         if not self.connected:
+            return
+        if self.processing_finished:
+            # If we've already processed and finished, ignore further messages.
             return
 
         event = data.get("event")
@@ -35,8 +39,9 @@ class MediaStream:
         elif event == "mark":
             print(f"From Twilio: Mark event: {data}")
         elif event == "close":
-            # When Twilio sends a close event, we transcribe and playback if we haven't done so.
-            await self.handle_close_event(data)
+            # If Twilio closes before we process, just close on our end as well.
+            print(f"From Twilio: Close event: {data}")
+            await self.close()
 
     async def handle_media_event(self, data: dict):
         if not self.has_seen_media:
@@ -63,16 +68,10 @@ class MediaStream:
         if self.received_audio and self.silence_count >= SILENCE_CHUNKS_REQUIRED:
             print(f"Detected {SILENCE_DURATION_MS}ms of silence. Stopping and transcribing.")
             await self.handle_transcription_and_playback()
-            # Do NOT close immediately. Let Twilio handle the call flow.
-            # Twilio might continue to stream audio or eventually send a 'close' event.
 
-    async def handle_close_event(self, data: dict):
-        print(f"From Twilio: Close event: {data}")
-        # If we haven't already processed the audio, do so now.
-        if self.received_audio and self.messages:
-            await self.handle_transcription_and_playback()
-        # Now close the connection after Twilio indicated it's done.
-        await self.close()
+            # After transcription and playback, close the connection immediately
+            # so Twilio moves on to the next TwiML verb.
+            await self.close()
 
     async def handle_transcription_and_playback(self):
         if not self.messages:
@@ -109,10 +108,12 @@ class MediaStream:
             }
             await self.websocket.send_text(json.dumps(mark_message))
 
-            print("Playback audio sent back to Twilio. Awaiting Twilio's next action or close event.")
+            print("Playback audio sent back to Twilio. Closing the connection now.")
+            self.processing_finished = True
 
         except Exception as e:
             print("Error during transcription or playback:", e)
+            self.processing_finished = True
 
     async def close(self):
         if self.connected:
