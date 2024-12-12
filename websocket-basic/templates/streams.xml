@@ -2,7 +2,7 @@
 <Response>
   <Say>This demo application will repeat back what you say. Watch the console to see the media messages. Begin speaking now.</Say>
   <Connect>
-    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/streams" track="both">
+    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/streams">
       <Parameter name="aCustomParameter" value="aCustomValue that was set in TwiML" />
     </Stream>
   </Connect>
