@@ -18,6 +18,10 @@ class AssemblyAIClient:
         self.session_opened = False
         self.session_ended = False
 
+        # Buffer for audio chunks we receive
+        self.audio_chunks = []
+        self.streaming_started = False
+
     def transcribe_audio(self, audio_data: bytes) -> str:
         """
         Offline transcription of raw PCM audio data (8kHz, 16-bit mono).
@@ -39,7 +43,7 @@ class AssemblyAIClient:
             except OSError:
                 pass
 
-    # ------------------ New Realtime Transcription Methods ------------------ #
+    # ------------------ Realtime Transcription Methods ------------------ #
 
     def on_open(self, session_opened: aai.RealtimeSessionOpened):
         self.session_opened = True
@@ -50,7 +54,7 @@ class AssemblyAIClient:
         if not transcript.text:
             return
         if isinstance(transcript, aai.RealtimeFinalTranscript):
-            # Final transcript, store and newline
+            # Final transcript
             self.final_transcripts.append(transcript.text)
             print("Final:", transcript.text)
         else:
@@ -76,6 +80,8 @@ class AssemblyAIClient:
         self.partial_transcript = ""
         self.session_opened = False
         self.session_ended = False
+        self.audio_chunks = []
+        self.streaming_started = False
 
         self.realtime_transcriber = aai.RealtimeTranscriber(
             sample_rate=sample_rate,
@@ -83,40 +89,57 @@ class AssemblyAIClient:
             on_error=self.on_error,
             on_open=self.on_open,
             on_close=self.on_close,
+            disable_partial_transcripts=False  # Set to True if you want only final transcripts
         )
         self.realtime_transcriber.connect()
 
-    def send_audio_chunk(self, audio_data: bytes, input_sample_rate=8000):
+    def add_audio_chunk(self, audio_data: bytes):
         """
-        Send a chunk of audio (linear PCM 16-bit mono at 8kHz) to the realtime transcriber.
-        We need to resample it to 16kHz before sending.
+        Add a chunk of linear PCM 16-bit mono at 8kHz to the buffer.
+        We will stream these chunks when we start_streaming_audio().
         """
-
         if not self.realtime_transcriber or self.session_ended:
-            # If session not started or already ended, ignore
+            return
+        self.audio_chunks.append(audio_data)
+
+    def audio_generator(self, input_sample_rate=8000):
+        """
+        A generator that yields resampled audio data (from 8kHz to 16kHz).
+        Once we stop adding chunks, this generator will naturally end.
+        """
+        # We continuously yield chunks from self.audio_chunks until no more are added.
+        # You can add logic here to handle silence detection and end generation.
+        # For example, stop yielding after a signal that silence was detected.
+        state = None
+        for chunk in self.audio_chunks:
+            out_data, state = audioop.ratecv(chunk, 2, 1, input_sample_rate, 16000, state)
+            yield out_data
+
+    def start_streaming_audio(self):
+        """
+        Start streaming the audio from self.audio_chunks to AssemblyAI
+        using the RealtimeTranscriber.stream() method.
+        This should be called once you've started adding chunks.
+        """
+        if not self.realtime_transcriber or self.session_ended:
+            print("Cannot start streaming: no active realtime session.")
             return
 
-        # Resample from 8kHz to 16kHz using audioop
-        # audioop.ratecv(data, width, channels, in_rate, out_rate, state)
-        # width=2 for 16-bit samples, channels=1, in_rate=8000, out_rate=16000
-        state = None
-        out_data, state = audioop.ratecv(audio_data, 2, 1, input_sample_rate, 16000, state)
+        if self.streaming_started:
+            print("Already streaming audio.")
+            return
 
-        # Now send the upsampled audio to AssemblyAI
-        self.realtime_transcriber.send(out_data)
+        self.streaming_started = True
+        # Start streaming and block until we run out of chunks
+        self.realtime_transcriber.stream(self.audio_generator())
 
     def stop_realtime_transcription(self):
         """
         Stop sending audio and close the realtime transcriber session.
-        Wait for the session to close and return the final transcripts.
+        Returns the final transcripts as a single string.
         """
-        if self.realtime_transcriber:
+        if self.realtime_transcriber and not self.session_ended:
             self.realtime_transcriber.close()
-
-        # Wait until on_close is called (or a short timeout)
-        # This code assumes synchronous operation. If needed, we can do async sleeps or checks.
-        # For simplicity, let's just trust that close is synchronous here. If async needed,
-        # we could implement a polling or waiting mechanism.
 
         # Return final transcripts as a single string
         return "\n".join(self.final_transcripts)
