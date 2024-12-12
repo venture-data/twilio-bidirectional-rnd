@@ -4,7 +4,7 @@ import audioop
 import asyncio
 from fastapi import WebSocket
 from assemblyai_client import AssemblyAIClient
-from logger import get_logger  # Import the get_logger function
+from logger import get_logger
 
 # Initialize logger for this module
 logger = get_logger("twilio_inbound_stream")
