@@ -1,6 +1,7 @@
 import base64
 import json
 import audioop
+import asyncio
 from fastapi import WebSocket
 from assemblyai_client import AssemblyAIClient
 
@@ -22,10 +23,7 @@ class MediaStream:
         self.processing_finished = False  # Once we've processed and played back audio
 
     async def process_message(self, data: dict):
-        if not self.connected:
-            return
-        if self.processing_finished:
-            # If we've already processed and finished, ignore further messages.
+        if not self.connected or self.processing_finished:
             return
 
         event = data.get("event")
@@ -39,8 +37,8 @@ class MediaStream:
         elif event == "mark":
             print(f"From Twilio: Mark event: {data}")
         elif event == "close":
-            # If Twilio closes before we process, just close on our end as well.
             print(f"From Twilio: Close event: {data}")
+            # If Twilio closes early and we haven't processed, just close.
             await self.close()
 
     async def handle_media_event(self, data: dict):
@@ -69,8 +67,11 @@ class MediaStream:
             print(f"Detected {SILENCE_DURATION_MS}ms of silence. Stopping and transcribing.")
             await self.handle_transcription_and_playback()
 
-            # After transcription and playback, close the connection immediately
-            # so Twilio moves on to the next TwiML verb.
+            # After transcription and playback, wait for the audio duration before closing the connection.
+            # This ensures Twilio has time to play the audio back to the caller.
+            await self.wait_for_audio_playback()
+
+            # Now close the connection so Twilio proceeds to the final <Say>
             await self.close()
 
     async def handle_transcription_and_playback(self):
@@ -108,12 +109,26 @@ class MediaStream:
             }
             await self.websocket.send_text(json.dumps(mark_message))
 
-            print("Playback audio sent back to Twilio. Closing the connection now.")
             self.processing_finished = True
 
+            # Store raw_pcm for duration calculation
+            self.raw_pcm = raw_pcm
+            print("Playback audio sent back to Twilio. Will wait before closing.")
         except Exception as e:
             print("Error during transcription or playback:", e)
             self.processing_finished = True
+
+    async def wait_for_audio_playback(self):
+        # Wait the duration of the audio so Twilio can play it
+        # Duration calculation: (len(raw_pcm)/2 samples) at 8000 Hz.
+        # seconds = number_of_samples / sample_rate
+        # samples = len(raw_pcm)/2
+        # sample_rate = 8000
+        if hasattr(self, 'raw_pcm'):
+            num_samples = len(self.raw_pcm) // 2
+            duration_seconds = num_samples / 8000.0
+            # Add a small buffer to ensure full playback
+            await asyncio.sleep(duration_seconds + 0.5)
 
     async def close(self):
         if self.connected:
