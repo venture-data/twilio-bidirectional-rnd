@@ -50,17 +50,17 @@ class AssemblyAIClient:
         print("AssemblyAI Realtime: Session ID:", session_opened.session_id)
 
     def on_data(self, transcript: aai.RealtimeTranscript):
-        # Handle partial and final transcripts
+        print("on_data called with transcript:", transcript)
         if not transcript.text:
+            print("No text in transcript. Possibly silence or unrecognized audio.")
             return
+        
         if isinstance(transcript, aai.RealtimeFinalTranscript):
-            # Final transcript
             self.final_transcripts.append(transcript.text)
             print("Final:", transcript.text)
         else:
-            # Partial transcript (interim)
             self.partial_transcript = transcript.text
-            print("Partial:", transcript.text, end="\r")
+            print("Partial:", transcript.text)
 
     def on_error(self, error: aai.RealtimeError):
         print("AssemblyAI Realtime Error:", error)
@@ -69,7 +69,7 @@ class AssemblyAIClient:
         self.session_ended = True
         print("AssemblyAI Realtime: Closing Session")
 
-    def start_realtime_transcription_session(self, sample_rate=16000):
+    def start_realtime_transcription_session(self, sample_rate=8000):
         """
         Start a realtime transcription session.
         We'll store partial and final transcripts and later
@@ -84,11 +84,12 @@ class AssemblyAIClient:
         self.streaming_started = False
 
         self.realtime_transcriber = aai.RealtimeTranscriber(
-            sample_rate=sample_rate,
+            sample_rate=8000,
             on_data=self.on_data,
             on_error=self.on_error,
             on_open=self.on_open,
             on_close=self.on_close,
+            encoding=aai.AudioEncoding.pcm_mulaw,
             disable_partial_transcripts=False  # Set to True if you want only final transcripts
         )
         self.realtime_transcriber.connect()
@@ -102,18 +103,10 @@ class AssemblyAIClient:
             return
         self.audio_chunks.append(audio_data)
 
-    def audio_generator(self, input_sample_rate=8000):
-        """
-        A generator that yields resampled audio data (from 8kHz to 16kHz).
-        Once we stop adding chunks, this generator will naturally end.
-        """
-        # We continuously yield chunks from self.audio_chunks until no more are added.
-        # You can add logic here to handle silence detection and end generation.
-        # For example, stop yielding after a signal that silence was detected.
-        state = None
-        for chunk in self.audio_chunks:
-            out_data, state = audioop.ratecv(chunk, 2, 1, input_sample_rate, 16000, state)
-            yield out_data
+    def audio_generator(self):
+        for i, chunk in enumerate(self.audio_chunks):
+            print(f"Audio generator yielding chunk {i}, size={len(chunk)} bytes")
+            yield chunk
 
     def start_streaming_audio(self):
         """

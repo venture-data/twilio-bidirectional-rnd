@@ -61,7 +61,7 @@ class MediaStream:
         linear = audioop.ulaw2lin(ulaw_payload, 2)
 
         # Add the audio chunk to the client (instead of send_audio_chunk)
-        self.aai_client.add_audio_chunk(linear)
+        self.aai_client.add_audio_chunk(ulaw_payload)
 
         # If we haven't started streaming to AssemblyAI yet, do so now
         if not self.audio_started:
