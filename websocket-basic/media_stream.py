@@ -4,6 +4,10 @@ import audioop
 import asyncio
 from fastapi import WebSocket
 from assemblyai_client import AssemblyAIClient
+from logger import get_logger  # Import the get_logger function
+
+# Initialize logger for this module
+logger = get_logger("twilio_inbound_stream")
 
 # Constants
 CHUNK_DURATION_MS = 20
@@ -30,92 +34,78 @@ class MediaStream:
             return
 
         event = data.get("event")
+        logger.debug("Received event from Twilio: %s", data)
 
         if event == "connected":
-            print(f"From Twilio: Connected event: {data}")
+            logger.info("From Twilio: Connected event: %s", data)
 
         elif event == "start":
-            print(f"From Twilio: Start event: {data}")
-            # Start the realtime transcription session at the start of the call
+            logger.info("From Twilio: Start event: %s", data)
             self.aai_client.start_realtime_transcription_session()
-            # We don't start streaming immediately. We'll start once we get the first media chunk.
 
         elif event == "media":
             await self.handle_media_event(data)
 
         elif event == "mark":
-            print(f"From Twilio: Mark event: {data}")
+            logger.info("From Twilio: Mark event: %s", data)
 
         elif event == "close":
-            print(f"From Twilio: Close event: {data}")
-            # If Twilio closes early and we haven't processed, just close.
+            logger.info("From Twilio: Close event: %s", data)
             await self.close()
 
     async def handle_media_event(self, data: dict):
         if not self.has_seen_media:
-            print(f"From Twilio: First media event: {data}")
+            logger.info("From Twilio: First media event: %s", data)
             self.has_seen_media = True
 
-        # Decode µ-law payload to linear PCM (16-bit)
+        # Decode µ-law payload
         ulaw_payload = base64.b64decode(data["media"]["payload"])
-        linear = audioop.ulaw2lin(ulaw_payload, 2)
+        logger.debug("Decoded ulaw payload size: %d bytes", len(ulaw_payload))
 
-        # Add the audio chunk to the client (instead of send_audio_chunk)
+        # Convert µ-law to linear PCM (16-bit)
+        linear = audioop.ulaw2lin(ulaw_payload, 2)
+        rms = audioop.rms(linear, 2)
+        logger.debug("Linear PCM RMS: %d", rms)
+
+        # Add the audio chunk (µ-law format) to the client for AssemblyAI
         self.aai_client.add_audio_chunk(ulaw_payload)
 
-        # If we haven't started streaming to AssemblyAI yet, do so now
         if not self.audio_started:
             self.audio_started = True
-            # Start streaming audio
-            # This call will block until we run out of audio chunks or we close the connection
-            # Consider running this in the background if blocking is an issue.
             asyncio.create_task(self.start_streaming_audio())
+            logger.debug("Started streaming audio to AssemblyAI.")
 
-        # Detect silence via RMS
-        rms = audioop.rms(linear, 2)
+        # Silence detection
         if rms < SILENCE_THRESHOLD:
             self.silence_count += 1
         else:
             self.silence_count = 0
             self.received_audio = True
 
-        # Store the original message for offline transcription playback
         self.messages.append(data)
 
-        # If we have received some audio and now have 2s of silence, we consider that end of speech.
         if self.received_audio and self.silence_count >= SILENCE_CHUNKS_REQUIRED:
-            print(f"Detected {SILENCE_DURATION_MS}ms of silence. Stopping and finalizing transcription.")
-
-            # Stop sending new audio chunks by simply not adding any more.
-            # Once the streaming generator finishes, we can stop the realtime transcription:
+            logger.info("Detected %dms of silence. Stopping and finalizing transcription.", SILENCE_DURATION_MS)
             self.final_transcript = self.aai_client.stop_realtime_transcription()
-            print("Final Realtime Transcripts Received:\n", self.final_transcript)
-
-            # Now handle the transcription and playback
+            logger.info("Final Realtime Transcripts Received:\n%s", self.final_transcript)
             await self.handle_transcription_and_playback()
-
-            # After transcription and playback, wait for the audio duration before closing the connection.
             await self.wait_for_audio_playback()
-
-            # Now close the connection so Twilio proceeds to the final <Say>
             await self.close()
 
     async def start_streaming_audio(self):
-        # This will start streaming audio chunks until they run out
         self.aai_client.start_streaming_audio()
 
     async def handle_transcription_and_playback(self):
         if not self.messages:
-            print("No audio messages to process.")
+            logger.warning("No audio messages to process for transcription/playback.")
             return
 
         try:
-            # Extract µ-law audio for playback
             payloads = [base64.b64decode(msg["media"]["payload"]) for msg in self.messages]
             linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
             raw_pcm = b"".join(linear_payloads)
 
-            # Now send the original µ-law audio back to Twilio to playback
+            # Now send the original µ-law audio back to Twilio
             combined_payload = base64.b64encode(b"".join(payloads)).decode("utf-8")
             stream_sid = self.messages[0]["streamSid"]
             message = {
@@ -124,26 +114,28 @@ class MediaStream:
                 "media": {"payload": combined_payload},
             }
             await self.websocket.send_text(json.dumps(message))
+            logger.debug("Sent playback audio back to Twilio.")
 
-            # Send a mark event to indicate playback done
             mark_message = {
                 "event": "mark",
                 "streamSid": stream_sid,
                 "mark": {"name": "Playback done"},
             }
             await self.websocket.send_text(json.dumps(mark_message))
+            logger.debug("Sent 'Playback done' mark event.")
 
             self.processing_finished = True
             self.raw_pcm = raw_pcm
-            print("Playback audio sent back to Twilio. Will wait before closing.")
+            logger.info("Playback audio sent back to Twilio. Will wait before closing.")
         except Exception as e:
-            print("Error during transcription or playback:", e)
+            logger.error("Error during transcription or playback: %s", e)
             self.processing_finished = True
 
     async def wait_for_audio_playback(self):
         if hasattr(self, 'raw_pcm'):
             num_samples = len(self.raw_pcm) // 2
             duration_seconds = num_samples / 8000.0
+            logger.debug("Waiting for %f seconds for audio playback to finish.", duration_seconds + 0.5)
             await asyncio.sleep(duration_seconds + 0.5)
 
     async def close(self):
@@ -151,7 +143,7 @@ class MediaStream:
             try:
                 await self.websocket.close()
             except Exception as e:
-                print(f"Error closing WebSocket: {e}")
+                logger.error("Error closing WebSocket: %s", e)
             finally:
                 self.connected = False
-        print("Server: Connection closed")
+        logger.info("Server: Connection closed")
