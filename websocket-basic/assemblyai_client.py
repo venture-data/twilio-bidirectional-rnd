@@ -2,9 +2,6 @@ import os
 import wave
 import assemblyai as aai
 import tempfile
-import audioop
-from uuid import uuid4
-from typing import List
 
 class AssemblyAIClient:
     def __init__(self, api_key: str):
@@ -69,7 +66,7 @@ class AssemblyAIClient:
         self.session_ended = True
         print("AssemblyAI Realtime: Closing Session")
 
-    def start_realtime_transcription_session(self, sample_rate=8000):
+    def start_realtime_transcription_session(self):
         """
         Start a realtime transcription session.
         We'll store partial and final transcripts and later
