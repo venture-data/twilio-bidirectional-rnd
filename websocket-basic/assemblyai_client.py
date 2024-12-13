@@ -2,6 +2,7 @@ import os
 import wave
 import assemblyai as aai
 import tempfile
+from threading import Event
 
 class AssemblyAIClient:
     def __init__(self, api_key: str):
@@ -15,9 +16,10 @@ class AssemblyAIClient:
         self.session_opened = False
         self.session_ended = False
 
-        # Buffer for audio chunks we receive
+        # Buffer for audio chunks (now 16kHz PCM S16LE)
         self.audio_chunks = []
         self.streaming_started = False
+        self.session_open_event = Event()
 
     def transcribe_audio(self, audio_data: bytes) -> str:
         """
@@ -45,6 +47,7 @@ class AssemblyAIClient:
     def on_open(self, session_opened: aai.RealtimeSessionOpened):
         self.session_opened = True
         print("AssemblyAI Realtime: Session ID:", session_opened.session_id)
+        self.session_open_event.set()
 
     def on_data(self, transcript: aai.RealtimeTranscript):
         print("on_data called with transcript:", transcript)
@@ -68,9 +71,8 @@ class AssemblyAIClient:
 
     def start_realtime_transcription_session(self):
         """
-        Start a realtime transcription session.
-        We'll store partial and final transcripts and later
-        finalize the transcript after stopping.
+        Start a realtime transcription session with 16kHz, PCM S16LE encoding.
+        We'll store partial and final transcripts and finalize after stopping.
         """
         # Reset state
         self.final_transcripts = []
@@ -79,22 +81,23 @@ class AssemblyAIClient:
         self.session_ended = False
         self.audio_chunks = []
         self.streaming_started = False
+        self.session_open_event.clear()
 
         self.realtime_transcriber = aai.RealtimeTranscriber(
-            sample_rate=8000,
+            sample_rate=16000,
             on_data=self.on_data,
             on_error=self.on_error,
             on_open=self.on_open,
             on_close=self.on_close,
-            encoding=aai.AudioEncoding.pcm_mulaw,
-            disable_partial_transcripts=False  # Set to True if you want only final transcripts
+            encoding=aai.AudioEncoding.pcm_s16le,
+            disable_partial_transcripts=False
         )
         self.realtime_transcriber.connect()
 
     def add_audio_chunk(self, audio_data: bytes):
         """
-        Add a chunk of linear PCM 16-bit mono at 8kHz to the buffer.
-        We will stream these chunks when we start_streaming_audio().
+        Add a chunk of linear PCM (16kHz, 16-bit mono) audio to the buffer.
+        These chunks will be streamed once session is open and we start streaming.
         """
         if not self.realtime_transcriber or self.session_ended:
             return
@@ -107,12 +110,19 @@ class AssemblyAIClient:
 
     def start_streaming_audio(self):
         """
-        Start streaming the audio from self.audio_chunks to AssemblyAI
-        using the RealtimeTranscriber.stream() method.
-        This should be called once you've started adding chunks.
+        Start streaming the audio from self.audio_chunks to AssemblyAI once the session is open.
+        If session isn't open yet, wait for it.
         """
         if not self.realtime_transcriber or self.session_ended:
             print("Cannot start streaming: no active realtime session.")
+            return
+
+        # Wait until session is open before streaming
+        print("Waiting for AssemblyAI session to open before streaming...")
+        self.session_open_event.wait(timeout=5)  # Wait up to 5 seconds for session
+
+        if not self.session_opened:
+            print("Session never opened, cannot stream.")
             return
 
         if self.streaming_started:

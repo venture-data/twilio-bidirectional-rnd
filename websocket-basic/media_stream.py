@@ -5,11 +5,11 @@ import asyncio
 from fastapi import WebSocket
 from assemblyai_client import AssemblyAIClient
 from logger import get_logger
+from pydub import AudioSegment
+import io
 
-# Initialize logger for this module
 logger = get_logger("twilio_inbound_stream")
 
-# Constants
 CHUNK_DURATION_MS = 20
 SILENCE_THRESHOLD = 500
 SILENCE_DURATION_MS = 2000
@@ -27,7 +27,7 @@ class MediaStream:
         self.processing_finished = False
         self.realtime_started = False
         self.final_transcript = ""
-        self.audio_started = False  # Track if we've started the streaming
+        self.audio_started = False  # Track if we've started streaming to AssemblyAI
 
     async def process_message(self, data: dict):
         if not self.connected or self.processing_finished:
@@ -41,6 +41,7 @@ class MediaStream:
 
         elif event == "start":
             logger.info("From Twilio: Start event: %s", data)
+            # Start the realtime transcription session ASAP
             self.aai_client.start_realtime_transcription_session()
 
         elif event == "media":
@@ -58,18 +59,33 @@ class MediaStream:
             logger.info("From Twilio: First media event: %s", data)
             self.has_seen_media = True
 
-        # Decode µ-law payload
+        # Decode µ-law payload (8kHz)
         ulaw_payload = base64.b64decode(data["media"]["payload"])
         logger.debug("Decoded ulaw payload size: %d bytes", len(ulaw_payload))
 
-        # Convert µ-law to linear PCM (16-bit)
-        linear = audioop.ulaw2lin(ulaw_payload, 2)
-        rms = audioop.rms(linear, 2)
-        logger.debug("Linear PCM RMS: %d", rms)
+        # Convert µ-law to linear PCM (8kHz, 16-bit)
+        linear_8k = audioop.ulaw2lin(ulaw_payload, 2)
 
-        # Add the audio chunk (µ-law format) to the client for AssemblyAI
-        self.aai_client.add_audio_chunk(ulaw_payload)
+        # Resample from 8kHz to 16kHz using pydub
+        # Create an AudioSegment from raw linear_8k data at 8kHz, mono, 16-bit
+        segment_8k = AudioSegment(
+            data=linear_8k,
+            sample_width=2,
+            frame_rate=8000,
+            channels=1
+        )
+        segment_16k = segment_8k.set_frame_rate(16000)
 
+        # Get raw PCM S16LE data from the 16kHz segment
+        linear_16k = segment_16k.raw_data
+
+        rms = audioop.rms(linear_16k, 2)
+        logger.debug("16kHz Linear PCM RMS: %d", rms)
+
+        # Add the audio chunk (16kHz S16LE) to the client
+        self.aai_client.add_audio_chunk(linear_16k)
+
+        # Start streaming once we have audio and session is started
         if not self.audio_started:
             self.audio_started = True
             asyncio.create_task(self.start_streaming_audio())
@@ -102,10 +118,7 @@ class MediaStream:
 
         try:
             payloads = [base64.b64decode(msg["media"]["payload"]) for msg in self.messages]
-            linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
-            raw_pcm = b"".join(linear_payloads)
-
-            # Now send the original µ-law audio back to Twilio
+            # Just send the original µ-law back to Twilio for playback
             combined_payload = base64.b64encode(b"".join(payloads)).decode("utf-8")
             stream_sid = self.messages[0]["streamSid"]
             message = {
@@ -124,8 +137,11 @@ class MediaStream:
             await self.websocket.send_text(json.dumps(mark_message))
             logger.debug("Sent 'Playback done' mark event.")
 
+            # Combine all linear PCM from the original messages (if needed)
+            linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
+            self.raw_pcm = b"".join(linear_payloads)
+
             self.processing_finished = True
-            self.raw_pcm = raw_pcm
             logger.info("Playback audio sent back to Twilio. Will wait before closing.")
         except Exception as e:
             logger.error("Error during transcription or playback: %s", e)
