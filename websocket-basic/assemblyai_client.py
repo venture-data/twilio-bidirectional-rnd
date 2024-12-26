@@ -112,7 +112,7 @@ class AssemblyAIClient:
             return
 
         # Send the chunk directly to the transcriber
-        self.realtime_transcriber.send(audio_data)
+        self.realtime_transcriber.stream(audio_data)
 
     def stop_realtime_transcription(self):
         """
