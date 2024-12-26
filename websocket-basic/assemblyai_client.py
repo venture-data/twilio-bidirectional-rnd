@@ -9,15 +9,12 @@ class AssemblyAIClient:
         aai.settings.api_key = api_key
         self.transcriber = aai.Transcriber()
 
-        # Attributes for realtime streaming
+        # Realtime transcription attributes
         self.realtime_transcriber = None
         self.final_transcripts = []
         self.partial_transcript = ""
         self.session_opened = False
         self.session_ended = False
-
-        # Buffer for audio chunks (now 16kHz PCM S16LE)
-        self.audio_chunks = []
         self.streaming_started = False
         self.session_open_event = Event()
 
@@ -79,7 +76,6 @@ class AssemblyAIClient:
         self.partial_transcript = ""
         self.session_opened = False
         self.session_ended = False
-        self.audio_chunks = []
         self.streaming_started = False
         self.session_open_event.clear()
 
@@ -92,46 +88,31 @@ class AssemblyAIClient:
             encoding=aai.AudioEncoding.pcm_s16le,
             disable_partial_transcripts=False
         )
-        self.realtime_transcriber.connect()
+        print("Connecting to AssemblyAI...")
+        try:
+            self.realtime_transcriber.connect()
+        except Exception as e:
+            print(f"Error connecting to AssemblyAI: {e}")
+            return
+        print("Connect call finished.")
 
-    def add_audio_chunk(self, audio_data: bytes):
+    def send_audio_chunk(self, audio_data: bytes):
         """
-        Add a chunk of linear PCM (16kHz, 16-bit mono) audio to the buffer.
-        These chunks will be streamed once session is open and we start streaming.
+        Immediately send a chunk of linear PCM (16kHz, 16-bit mono) audio
+        to AssemblyAI's realtime transcriber.
         """
+        # Ensure session exists and is not ended
         if not self.realtime_transcriber or self.session_ended:
             return
-        self.audio_chunks.append(audio_data)
 
-    def audio_generator(self):
-        for i, chunk in enumerate(self.audio_chunks):
-            print(f"Audio generator yielding chunk {i}, size={len(chunk)} bytes")
-            yield chunk
-
-    def start_streaming_audio(self):
-        """
-        Start streaming the audio from self.audio_chunks to AssemblyAI once the session is open.
-        If session isn't open yet, wait for it.
-        """
-        if not self.realtime_transcriber or self.session_ended:
-            print("Cannot start streaming: no active realtime session.")
-            return
-
-        # Wait until session is open before streaming
-        print("Waiting for AssemblyAI session to open before streaming...")
-        self.session_open_event.wait(timeout=5)  # Wait up to 5 seconds for session
-
+        # Optionally wait for session to open
         if not self.session_opened:
-            print("Session never opened, cannot stream.")
+            # If you want to queue chunks until open, you'd handle that here
+            print("Session not open yet; dropping or queueing chunk.")
             return
 
-        if self.streaming_started:
-            print("Already streaming audio.")
-            return
-
-        self.streaming_started = True
-        # Start streaming and block until we run out of chunks
-        self.realtime_transcriber.stream(self.audio_generator())
+        # Send the chunk directly to the transcriber
+        self.realtime_transcriber.send(audio_data)
 
     def stop_realtime_transcription(self):
         """

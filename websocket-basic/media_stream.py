@@ -6,7 +6,6 @@ from fastapi import WebSocket
 from assemblyai_client import AssemblyAIClient
 from logger import get_logger
 from pydub import AudioSegment
-import io
 
 logger = get_logger("twilio_inbound_stream")
 
@@ -27,7 +26,7 @@ class MediaStream:
         self.processing_finished = False
         self.realtime_started = False
         self.final_transcript = ""
-        self.audio_started = False  # Track if we've started streaming to AssemblyAI
+        self.audio_started = False  # Track if we've begun sending audio to AssemblyAI
 
     async def process_message(self, data: dict):
         if not self.connected or self.processing_finished:
@@ -38,11 +37,10 @@ class MediaStream:
 
         if event == "connected":
             logger.info("From Twilio: Connected event: %s", data)
+            self.aai_client.start_realtime_transcription_session()
 
         elif event == "start":
             logger.info("From Twilio: Start event: %s", data)
-            # Start the realtime transcription session ASAP
-            self.aai_client.start_realtime_transcription_session()
 
         elif event == "media":
             await self.handle_media_event(data)
@@ -67,7 +65,6 @@ class MediaStream:
         linear_8k = audioop.ulaw2lin(ulaw_payload, 2)
 
         # Resample from 8kHz to 16kHz using pydub
-        # Create an AudioSegment from raw linear_8k data at 8kHz, mono, 16-bit
         segment_8k = AudioSegment(
             data=linear_8k,
             sample_width=2,
@@ -75,21 +72,18 @@ class MediaStream:
             channels=1
         )
         segment_16k = segment_8k.set_frame_rate(16000)
-
-        # Get raw PCM S16LE data from the 16kHz segment
         linear_16k = segment_16k.raw_data
 
+        # Measure volume (RMS) for silence detection
         rms = audioop.rms(linear_16k, 2)
         logger.debug("16kHz Linear PCM RMS: %d", rms)
 
-        # Add the audio chunk (16kHz S16LE) to the client
-        self.aai_client.add_audio_chunk(linear_16k)
+        # Send audio chunk to AssemblyAI in real-time
+        self.aai_client.send_audio_chunk(linear_16k)
 
-        # Start streaming once we have audio and session is started
         if not self.audio_started:
             self.audio_started = True
-            asyncio.create_task(self.start_streaming_audio())
-            logger.debug("Started streaming audio to AssemblyAI.")
+            logger.debug("Sending audio chunks to AssemblyAI in real-time...")
 
         # Silence detection
         if rms < SILENCE_THRESHOLD:
@@ -100,6 +94,7 @@ class MediaStream:
 
         self.messages.append(data)
 
+        # If we've received audio but now have 2 seconds of silence, finalize
         if self.received_audio and self.silence_count >= SILENCE_CHUNKS_REQUIRED:
             logger.info("Detected %dms of silence. Stopping and finalizing transcription.", SILENCE_DURATION_MS)
             self.final_transcript = self.aai_client.stop_realtime_transcription()
@@ -108,10 +103,11 @@ class MediaStream:
             await self.wait_for_audio_playback()
             await self.close()
 
-    async def start_streaming_audio(self):
-        self.aai_client.start_streaming_audio()
-
     async def handle_transcription_and_playback(self):
+        """
+        In your current example, you simply re-encode the original µ-law
+        and send it back to Twilio for playback.
+        """
         if not self.messages:
             logger.warning("No audio messages to process for transcription/playback.")
             return
@@ -137,7 +133,7 @@ class MediaStream:
             await self.websocket.send_text(json.dumps(mark_message))
             logger.debug("Sent 'Playback done' mark event.")
 
-            # Combine all linear PCM from the original messages (if needed)
+            # Combine all linear PCM from the original messages if needed
             linear_payloads = [audioop.ulaw2lin(p, 2) for p in payloads]
             self.raw_pcm = b"".join(linear_payloads)
 
@@ -148,8 +144,11 @@ class MediaStream:
             self.processing_finished = True
 
     async def wait_for_audio_playback(self):
+        """
+        Wait for enough time to play back the combined PCM audio (if needed).
+        """
         if hasattr(self, 'raw_pcm'):
-            num_samples = len(self.raw_pcm) // 2
+            num_samples = len(self.raw_pcm) // 2  # 16-bit => 2 bytes per sample
             duration_seconds = num_samples / 8000.0
             logger.debug("Waiting for %f seconds for audio playback to finish.", duration_seconds + 0.5)
             await asyncio.sleep(duration_seconds + 0.5)
