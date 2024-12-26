@@ -1,4 +1,6 @@
 .DS_Store
 __pycache__
 .env
-venv
+*.log
+*.m4a
+*.mp3
