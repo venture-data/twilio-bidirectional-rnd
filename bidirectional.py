@@ -43,9 +43,8 @@ async def incoming_call(request: Request):
     print(request.client.host)
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
                           <Response>
-                              <Say>Hi, how can I help you?</Say>
                               <Connect>
-                                  <Stream url="wss://078e-45-249-10-232.ngrok-free.app/media-stream" />
+                                  <Stream url="wss://deadly-adapted-joey.ngrok-free.app/streams" />
                               </Connect>
                           </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
