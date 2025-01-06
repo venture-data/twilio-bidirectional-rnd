@@ -14,8 +14,9 @@ if not OPENAI_API_KEY:
 
 # Constants
 SYSTEM_MESSAGE = (
-    "You are a helpful and bubbly AI assistant who loves to chat about anything the user is interested in. "
-    "You have a penchant for dad jokes, owl jokes, and rickrolling – subtly. Always stay positive, but work in a joke when appropriate."
+    "You are an Urdu Speaking Customer Support Representative, named Maria, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about "
+    "recent Price Adjustments of Capstan International (which has gone up 10 Rs from 200 Rs to 210 Rs) and asking their feedback upon it. Keep it professional, and if someone talks in Punjabi "
+    "respond accordingly"
 )
 VOICE = "alloy"
 PORT = int(os.getenv("PORT", 5050))
@@ -37,14 +38,14 @@ app = FastAPI()
 async def root(): 
     return {"message": "Twilio Media Stream Server is running!"}
 
-@app.post("/incoming-call")
+@app.post("/twiml")
 async def incoming_call(request: Request):
     print("Incoming call")
     print(request.client.host)
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
                           <Response>
                               <Connect>
-                                  <Stream url="wss://deadly-adapted-joey.ngrok-free.app/streams" />
+                                  <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream" />
                               </Connect>
                           </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
@@ -80,7 +81,7 @@ async def media_stream(websocket: WebSocket):
                     "voice": VOICE,
                     "instructions": SYSTEM_MESSAGE,
                     "modalities": ["text", "audio"],
-                    "temperature": 0.8,
+                    "temperature": 0.6,
                 },
             }
             await openai_ws.send(json.dumps(session_update))
@@ -95,7 +96,9 @@ async def media_stream(websocket: WebSocket):
                     "content": [
                         {
                             "type": "input_text",
-                            "text": 'Greet the user with "Hello there! I am an AI voice assistant powered by Twilio and the OpenAI Realtime API. You can ask me for facts, jokes, or anything you can imagine. How can I help you?"',
+                            "text": "You are an Urdu Speaking Customer Support Representative, named Maria, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about " \
+                                "recent Price Adjustments of Capstan International (which has gone up 10 Rs from 200 Rs to 210 Rs) and asking their feedback upon it. Start by greeting them with: "\
+                                "'Hello, mera naam Maria ha, main Bristish American Tobacco say baat kar raha hu, aap kesay han?', and let the other person say something before continuing the conversation, keep it all natural",
                         }
                     ],
                 },
