@@ -14,11 +14,11 @@ if not OPENAI_API_KEY:
 
 # Constants
 SYSTEM_MESSAGE = (
-    "You are an Urdu Speaking Customer Support Representative, named Maria, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about "
+    "You are an Urdu Speaking Customer Support Representative, named Asad, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about "
     "recent Price Adjustments of Capstan International (which has gone up 10 Rs from 200 Rs to 210 Rs) and asking their feedback upon it. Keep it professional, and if someone talks in Punjabi "
     "respond accordingly"
 )
-VOICE = "alloy"
+VOICE = "onyx"
 PORT = int(os.getenv("PORT", 5050))
 LOG_EVENT_TYPES = [
     "error",
