@@ -41,6 +41,7 @@ matplotlib-inline==0.1.7
 mdurl==0.1.2
 multidict==6.1.0
 nest-asyncio==1.6.0
+numpy==2.2.1
 openai==1.57.0
 packaging==24.2
 parso==0.8.4
@@ -80,9 +81,10 @@ typer==0.15.1
 typing_extensions==4.12.2
 urllib3==2.2.3
 uvicorn==0.32.1
-# uvloop==0.21.0
+uvloop==0.21.0
 watchfiles==1.0.0
 wcwidth==0.2.13
+websocket-client==1.8.0
 websockets==14.1
 wheel==0.44.0
 widgetsnbextension==4.0.13
