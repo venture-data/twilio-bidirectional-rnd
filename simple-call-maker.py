@@ -26,6 +26,8 @@ async def start_call(request: CallRequest):
     Start an outbound call using Twilio.
     """
     twilio_call_url = "https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881"
+    # local https://handler.twilio.com/twiml/EH9d9a02c85d858747bf10c9c8880bd078
+    # cloud https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881
 
     call = twilio_client.calls.create(
         from_="+17753177891", # +17753177891 +12185857512 +15512967933
