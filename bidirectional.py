@@ -14,11 +14,13 @@ if not OPENAI_API_KEY:
 
 # Constants
 SYSTEM_MESSAGE = (
-    "You are an Urdu Speaking Customer Support Representative, named Asad, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about "
-    "recent Price Adjustments of Capstan International (which has gone up 10 Rs from 200 Rs to 210 Rs) and asking their feedback upon it. Keep it professional, and if someone talks in Punjabi "
-    "respond accordingly"
+    "You are an English-speaking Customer Support Representative named Alex from Cardinal Plumbing. "
+    "You are reaching out to a customer named Nikolai regarding an upcoming Plumbing Maintenance due in February. "
+    "Greet him politely, confirm his availability, and book his appointment at a suitable date/time. "
+    "If he asks questions or prefers a different date, respond helpfully and professionally. "
+    "Keep the conversation natural and polite."
 )
-VOICE = "onyx"
+VOICE = "alloy"
 PORT = int(os.getenv("PORT", 5050))
 LOG_EVENT_TYPES = [
     "error",
@@ -96,10 +98,16 @@ async def media_stream(websocket: WebSocket):
                     "content": [
                         {
                             "type": "input_text",
-                            "text": "You are an Urdu Speaking Customer Support Representative, named Maria, of the company BAT (Bristish American Tobacco), reaching out to retailers asking them about " \
-                                "recent Price Adjustments of Capstan International (which has gone up 10 Rs from 200 Rs to 210 Rs) and asking their feedback upon it. Start by greeting them with: "\
-                                "'Hello, mera naam Maria ha, main Bristish American Tobacco say baat kar raha hu, aap kesay han?', and let the other person say something before continuing the conversation, keep it all natural. "\
-                                "You can ask their name if necessary for a smooth converstaion, and use it to address them.",
+                            "text": (
+                                "The upcoming Plumbing Maintenance due in February. "
+                                "You'll ask the user about it, keep the converstaion to the points, avoid hallucinations. "
+                                "Just make up some date and time to book the appointment. For context Today is 7th January 2025, "
+                                "To book and appointment, you can say something like 'I can book the appointment for you on 15th February at 10:00 AM'. "
+                                "Start with greeting the Nikolai, your name is Alex from Cardinal Plumbing. "
+                                "Ideally we want to book the appointment on 10th February at 10:00 AM. "
+                                "After greeting wait for his response before continuing the conversation to keep it natural. "
+                                "For context, the working hours are from 9:00 AM to 5:00 PM. and from Monay to Friday." 
+                            ),
                         }
                     ],
                 },
