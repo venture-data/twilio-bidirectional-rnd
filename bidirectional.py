@@ -20,7 +20,7 @@ SYSTEM_MESSAGE = (
     "If he asks questions or prefers a different date, respond helpfully and professionally. "
     "Keep the conversation natural and polite."
 )
-VOICE = "alloy"
+VOICE = "verse"
 PORT = int(os.getenv("PORT", 5050))
 LOG_EVENT_TYPES = [
     "error",
