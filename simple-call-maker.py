@@ -14,7 +14,7 @@ app = FastAPI()
 
 # Set up templates and static files
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Configuration
 TWILIO_AUTH_TOKEN = os.getenv('AUTH_TOKEN')
@@ -25,7 +25,7 @@ twilio_client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
 
 class CallRequest(BaseModel):
     to: str
-    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881"
+    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH9d9a02c85d858747bf10c9c8880bd078"
 
 # local: https://handler.twilio.com/twiml/EH9d9a02c85d858747bf10c9c8880bd078
 # Cloud: https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881
