@@ -21,7 +21,7 @@ SYSTEM_MESSAGE = (
     "Make sure to keep Arizona accent and add some filler words like 'uh', 'um', 'like', 'you know', etc. to sound more natural."
 )
 VOICE = "verse"
-PORT = int(os.getenv("PORT", 5050))
+PORT = int(os.getenv("PORT", 8080))
 LOG_EVENT_TYPES = [
     "error",
     "response.content.done",
