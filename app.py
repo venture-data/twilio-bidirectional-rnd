@@ -42,7 +42,8 @@ SYSTEM_MESSAGE = (
     "If he asks questions or prefers a different date, respond helpfully and professionally. "
     "Keep the conversation natural and polite and speak fast. "
     "Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural. "
-    "Also, although we will keep the output short, but if it is slightly longer, talk naturally, add filler word, take a breath in between."
+    "Also, although we will keep the output short, but if it is slightly longer, talk naturally, add filler word, take a breath in between. "
+    "Don't sound too excited, just talk in a normal tone."
 )
 VOICE = "verse"
 LOG_EVENT_TYPES = [
@@ -132,7 +133,8 @@ async def media_stream(websocket: WebSocket):
                                 "Ideally, we want to book the appointment on 10th February at 10:00 AM. "
                                 "After greeting, wait for his response before continuing the conversation to keep it natural. "
                                 "For context, the working hours are from 9:00 AM to 5:00 PM, Monday to Friday. "
-                                "Remember to Speak Fast. Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural."
+                                "Remember to Speak Fast. Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural. "
+                                "Don't sound too excited, just talk in a normal tone."
                             ),
                         }
                     ],
