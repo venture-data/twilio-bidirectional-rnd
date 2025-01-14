@@ -18,7 +18,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TWILIO_AUTH_TOKEN = os.getenv('AUTH_TOKEN')
 TWILIO_SID = os.getenv('ACCOUNT_SID')
 TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
-PORT = int(os.getenv("PORT", 5050))
+PORT = int(os.getenv("PORT", 8080))
 
 if not OPENAI_API_KEY:
     raise EnvironmentError("Missing OpenAI API key. Please set it in the .env file.")
@@ -36,12 +36,13 @@ twilio_client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
 
 # Constants
 SYSTEM_MESSAGE = (
-    "You are an English-speaking Customer Support Representative named Alex from Cardinal Plumbing. "
+    "You are an English-speaking Customer Support Representative named Alex from Cardinal Plumbing. You've a Arizona Accent. "
     "You are reaching out to a customer named Nikolai regarding an upcoming Plumbing Maintenance due in February. "
     "Greet him politely, confirm his availability, and book his appointment at a suitable date/time. "
     "If he asks questions or prefers a different date, respond helpfully and professionally. "
     "Keep the conversation natural and polite and speak fast. "
-    "Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', 'like', 'you know', etc. to sound more natural."
+    "Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural. "
+    "Also, although we will keep the output short, but if it is slightly longer, talk naturally, add filler word, take a breath in between."
 )
 VOICE = "verse"
 LOG_EVENT_TYPES = [
@@ -59,7 +60,7 @@ SHOW_TIMING_MATH = False
 # Models
 class CallRequest(BaseModel):
     to: str
-    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH9d9a02c85d858747bf10c9c8880bd078"
+    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881"
 
 # Routes
 @app.get("/")
@@ -125,12 +126,13 @@ async def media_stream(websocket: WebSocket):
                             "text": (
                                 "The upcoming Plumbing Maintenance due in February. "
                                 "You'll ask the user about it, keep the conversation to the points, avoid hallucinations. "
-                                "Just make up some date and time to book the appointment. For context Today is 7th January 2025, "
+                                "Just make up some date and time to book the appointment. For context Today is 14th January 2025, "
                                 "To book an appointment, you can say something like 'I can book the appointment for you on 15th February at 10:00 AM'. "
                                 "Start with greeting Nikolai, your name is Alex from Cardinal Plumbing. "
                                 "Ideally, we want to book the appointment on 10th February at 10:00 AM. "
                                 "After greeting, wait for his response before continuing the conversation to keep it natural. "
-                                "For context, the working hours are from 9:00 AM to 5:00 PM, Monday to Friday."
+                                "For context, the working hours are from 9:00 AM to 5:00 PM, Monday to Friday. "
+                                "Remember to Speak Fast. Make sure to keep an Arizona accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural."
                             ),
                         }
                     ],
