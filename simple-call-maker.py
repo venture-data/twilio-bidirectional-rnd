@@ -27,6 +27,9 @@ class CallRequest(BaseModel):
     to: str
     twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881"
 
+# local: https://handler.twilio.com/twiml/EH9d9a02c85d858747bf10c9c8880bd078
+# Cloud: https://handler.twilio.com/twiml/EH0db6372522f950d90f33662d5f3b3881
+
 @app.get("/")
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
