@@ -13,12 +13,13 @@ if not OPENAI_API_KEY:
 
 # Constants
 SYSTEM_MESSAGE = (
-    "You are an English-speaking Customer Support Representative named Alex from Cardinal Plumbing. "
+    "You are an English-speaking Customer Support Representative named Alex from Cardinal Plumbing. You've Arizona Accent. "
     "You are reaching out to a customer named Nikolai regarding an upcoming Plumbing Maintenance due in February. "
     "Greet him politely, confirm his availability, and book his appointment at a suitable date/time. "
     "If he asks questions or prefers a different date, respond helpfully and professionally. "
     "Keep the conversation natural and polite and speak fast. "
     "Make sure to keep Arizona accent and add some filler words like 'uh', 'um', 'like', 'you know', etc. to sound more natural."
+    "Make sure you do not sound super excited, stay calm and stable, and in a good mood. "
 )
 VOICE = "verse"
 PORT = int(os.getenv("PORT", 8080))
@@ -65,7 +66,7 @@ async def media_stream(websocket: WebSocket):
     response_start_timestamp_twilio = None
     try:
         openai_ws = await websockets.connect(
-            "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01",
+            "wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview-2024-10-01",
              additional_headers={
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
                 "OpenAI-Beta": "realtime=v1",
@@ -101,12 +102,13 @@ async def media_stream(websocket: WebSocket):
                             "text": (
                                 "The upcoming Plumbing Maintenance due in February. "
                                 "You'll ask the user about it, keep the converstaion to the points, avoid hallucinations. "
-                                "Just make up some date and time to book the appointment. For context Today is 7th January 2025, "
-                                "To book and appointment, you can say something like 'I can book the appointment for you on 15th February at 10:00 AM'. "
+                                "Just make up some date and time to book the appointment. For context Today is 16th January 2025, time about 11:45am "
+                                "To book an appointment, you can say something like 'I can book the appointment for you on 15th February at 10:00 AM'. "
                                 "Start with greeting the Nikolai, your name is Alex from Cardinal Plumbing. "
                                 "Ideally we want to book the appointment on 10th February at 10:00 AM. "
                                 "After greeting wait for his response before continuing the conversation to keep it natural. "
-                                "For context, the working hours are from 9:00 AM to 5:00 PM. and from Monay to Friday." 
+                                "For context, the working hours are from 9:00 AM to 5:00 PM. and from Monay to Friday. "
+                                "Make sure you do not sound super excited, stay calm and stable, and in a good mood."
                             ),
                         }
                     ],
