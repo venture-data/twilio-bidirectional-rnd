@@ -15,8 +15,8 @@ from starlette.websockets import WebSocketDisconnect
 
 load_dotenv()
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_ACCOUNT_SID = os.getenv("ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 AGENT_ID = os.getenv("AGENT_ID")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
@@ -37,18 +37,18 @@ async def root():
     return {"message": "Twilio-ElevenLabs Integration Server (Outbound Example)"}
 
 
-@app.post("/twilio/inbound_call")
-async def handle_incoming_call(request: Request):
-    form_data = await request.form()
-    call_sid = form_data.get("CallSid", "Unknown")
-    from_number = form_data.get("From", "Unknown")
-    print(f"Incoming call: CallSid={call_sid}, From={from_number}")
+# @app.post("/twilio/inbound_call")
+# async def handle_incoming_call(request: Request):
+#     form_data = await request.form()
+#     call_sid = form_data.get("CallSid", "Unknown")
+#     from_number = form_data.get("From", "Unknown")
+#     print(f"Incoming call: CallSid={call_sid}, From={from_number}")
 
-    response = VoiceResponse()
-    connect = Connect()
-    connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
-    response.append(connect)
-    return HTMLResponse(content=str(response), media_type="application/xml")
+#     response = VoiceResponse()
+#     connect = Connect()
+#     connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
+#     response.append(connect)
+#     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -72,17 +72,17 @@ async def initiate_outbound_call(request: OutBoundRequest):
     return {"status": "initiated", "call_sid": call.sid}
 
 
-@app.post("/twilio/outbound_call_response")
-async def outbound_call_response(request: Request):
-    """
-    Twilio will hit this endpoint after the call is answered.
-    We respond with TwiML to connect to our WebSocket.
-    """
-    response = VoiceResponse()
-    connect = Connect()
-    connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
-    response.append(connect)
-    return HTMLResponse(content=str(response), media_type="application/xml")
+# @app.post("/twilio/outbound_call_response")
+# async def outbound_call_response(request: Request):
+#     """
+#     Twilio will hit this endpoint after the call is answered.
+#     We respond with TwiML to connect to our WebSocket.
+#     """
+#     response = VoiceResponse()
+#     connect = Connect()
+#     connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
+#     response.append(connect)
+#     return HTMLResponse(content=str(response), media_type="application/xml")
 
 
 @app.websocket("/media-stream-eleven")
