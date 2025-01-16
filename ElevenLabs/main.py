@@ -15,7 +15,7 @@ load_dotenv()
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-ELEVEN_LABS_AGENT_ID = os.getenv("AGENT_ID")
+AGENT_ID = os.getenv("AGENT_ID")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 app = FastAPI()
@@ -100,7 +100,7 @@ async def handle_media_stream(websocket: WebSocket):
     try:
         conversation = Conversation(
             client=eleven_labs_client,
-            agent_id=ELEVEN_LABS_AGENT_ID,
+            agent_id=AGENT_ID,
             requires_auth=True,  # Security > Enable authentication
             audio_interface=audio_interface,
             callback_agent_response=lambda text: print(f"Agent: {text}"),
