@@ -1,6 +1,8 @@
 import os
 import json
 import traceback
+from pydantic import BaseModel
+from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse
@@ -24,6 +26,12 @@ app = FastAPI()
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 
+class OutBoundRequest(BaseModel):
+    to: str
+    from_: Optional[str] = "+17753177891"
+    twiml_url: Optional[str] = "https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5"
+
+
 @app.get("/")
 async def root():
     return {"message": "Twilio-ElevenLabs Integration Server (Outbound Example)"}
@@ -43,14 +51,13 @@ async def handle_incoming_call(request: Request):
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 @app.post("/twilio/outbound_call")
-async def initiate_outbound_call(request: Request):
+async def initiate_outbound_call(request: OutBoundRequest):
     """
     Endpoint to initiate an outbound call via Twilio.
-    Expects JSON payload: { "to": "+1234567890", "from": "+1098765432" }
+    Expects JSON payload: { "to": "+1234567890", "from_": "+1098765432" }
     """
-    payload = await request.json()
-    to_number = payload.get("to")
-    from_number = payload.get("from")
+    to_number = request.to
+    from_number = request.from_
 
     if not to_number or not from_number:
         return {"error": "Missing 'to' or 'from' phone number"}
@@ -59,8 +66,7 @@ async def initiate_outbound_call(request: Request):
     call = twilio_client.calls.create(
         to=to_number,
         from_=from_number,
-        # This URL is where Twilio will request the TwiML
-        url=f"https://{request.url.hostname}/twilio/outbound_call_response"
+        url=request.twiml_url
     )
 
     return {"status": "initiated", "call_sid": call.sid}
@@ -120,6 +126,6 @@ async def handle_media_stream(websocket: WebSocket):
             traceback.print_exc()
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
