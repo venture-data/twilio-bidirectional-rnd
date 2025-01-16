@@ -5,7 +5,6 @@ from fastapi import WebSocket
 from elevenlabs.conversational_ai.conversation import AudioInterface
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-
 class TwilioAudioInterface(AudioInterface):
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
