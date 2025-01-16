@@ -29,9 +29,6 @@ async def root():
     return {"message": "Twilio-ElevenLabs Integration Server (Outbound Example)"}
 
 
-# -------------------------------
-# 1) INBOUND CALL (Unchanged)
-# -------------------------------
 @app.post("/twilio/inbound_call")
 async def handle_incoming_call(request: Request):
     form_data = await request.form()
@@ -45,10 +42,6 @@ async def handle_incoming_call(request: Request):
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
-
-# -------------------------------
-# 2) OUTBOUND CALL
-# -------------------------------
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: Request):
     """
@@ -86,9 +79,6 @@ async def outbound_call_response(request: Request):
     return HTMLResponse(content=str(response), media_type="application/xml")
 
 
-# -------------------------------
-# 3) MEDIA STREAM WEBSOCKET
-# -------------------------------
 @app.websocket("/media-stream-eleven")
 async def handle_media_stream(websocket: WebSocket):
     await websocket.accept()
