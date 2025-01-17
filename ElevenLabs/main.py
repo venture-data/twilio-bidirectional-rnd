@@ -54,7 +54,7 @@ async def root():
 async def initiate_outbound_call(request: OutBoundRequest):
     """
     Endpoint to initiate an outbound call via Twilio.
-    Expects JSON payload: { "to": "+1234567890", "from_": "+1098765432" }
+    Expects JSON payload: { "to": "+1234567890", "from_" [OPTIONAL]: "+1098765432", "twiml_url" [OPTIONAL]: "https://...." }
     """
     to_number = request.to
     from_number = request.from_
