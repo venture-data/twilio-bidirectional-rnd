@@ -123,7 +123,7 @@ async def handle_media_stream(websocket: WebSocket):
             print("Conversation ended")
         except Exception:
             print("Error ending conversation session:")
-            traceback.print_exc()\
+            traceback.print_exc()
 
 # if __name__ == "__main__":
 #     import uvicorn
