@@ -65,7 +65,7 @@
                     ...(twilio_call_url && { twilio_call_url })
                 };
 
-                const result = await fetch('/start-call/', {
+                const result = await fetch('/twilio/outbound_call', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

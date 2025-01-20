@@ -12,8 +12,12 @@ from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation
 from twilio_audio_interface import TwilioAudioInterface
 from starlette.websockets import WebSocketDisconnect
+from fastapi.templating import Jinja2Templates
 
 load_dotenv()
+
+# Jinja2 templates
+templates = Jinja2Templates(directory="templates")
 
 TWILIO_ACCOUNT_SID = os.getenv("ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("AUTH_TOKEN")
@@ -29,12 +33,14 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 class OutBoundRequest(BaseModel):
     to: str
     from_: Optional[str] = "+17753177891"
-    twiml_url: Optional[str] = "https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5"
+    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049"
 
+# local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
+# cloud https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049
 
 @app.get("/")
-async def root():
-    return {"message": "Twilio-ElevenLabs Integration Server (Outbound Example)"}
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/twilio/inbound_call")
@@ -66,7 +72,7 @@ async def initiate_outbound_call(request: OutBoundRequest):
     call = twilio_client.calls.create(
         to=to_number,
         from_=from_number,
-        url=request.twiml_url
+        url=request.twilio_call_url
     )
 
     return {"status": "initiated", "call_sid": call.sid}
