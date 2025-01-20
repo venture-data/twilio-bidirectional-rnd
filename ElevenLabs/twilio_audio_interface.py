@@ -55,8 +55,11 @@ class TwilioAudioInterface(AudioInterface):
 
         if event_type == "start":
             self.stream_sid = data["start"]["streamSid"]
+            print(f"streamsid: {data["start"]["streamSid"]}")
             # Capture the callSid from the 'start' message
-            self.call_sid = data["start"].get("callSid", None)
+            # self.call_sid = data["start"].get("callSid", None)
+            self.call_sid = data["start"]["callSid"]
+            print(f"callsid: {data["start"]["callSid"]}")
 
         elif event_type == "media" and self.input_callback:
             audio_data = base64.b64decode(data["media"]["payload"])

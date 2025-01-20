@@ -92,6 +92,8 @@ async def handle_media_stream(websocket: WebSocket):
 
     audio_interface = TwilioAudioInterface(websocket)
     eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+    
+    local_call_sid = None
 
     try:
         conversation = Conversation(
@@ -109,6 +111,11 @@ async def handle_media_stream(websocket: WebSocket):
         async for message in websocket.iter_text():
             if not message:
                 continue
+            
+            data = json.loads(message)
+            
+            if data.get("event") == "start":
+                local_call_sid = data["start"]["callSid"]
             await audio_interface.handle_twilio_message(json.loads(message))
 
     except WebSocketDisconnect:
@@ -119,9 +126,9 @@ async def handle_media_stream(websocket: WebSocket):
     finally:
         try:
             conversation.end_session()
-            print(f"Call SID: {audio_interface.call_sid}")
-            if audio_interface.call_sid:
-                twilio_client.calls(audio_interface.call_sid).update(status="completed")
+            print(f"Call SID: {local_call_sid}")
+            if local_call_sid:
+                twilio_client.calls(local_call_sid).update(status="completed")
             conversation.wait_for_session_end()
             print("Conversation ended")
         except Exception:
