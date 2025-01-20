@@ -120,6 +120,8 @@ async def handle_media_stream(websocket: WebSocket):
         try:
             conversation.end_session()
             conversation.wait_for_session_end()
+            if audio_interface.call_sid:
+                twilio_client.calls(audio_interface.call_sid).update(status="completed")
             print("Conversation ended")
         except Exception:
             print("Error ending conversation session:")
