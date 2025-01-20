@@ -10,7 +10,6 @@ class TwilioAudioInterface(AudioInterface):
         self.websocket = websocket
         self.input_callback = None
         self.stream_sid = None
-        # NEW: We will store the callSid here when we see the "start" message
         self.call_sid = None
         self.loop = asyncio.get_event_loop()
 
@@ -23,7 +22,6 @@ class TwilioAudioInterface(AudioInterface):
         self.call_sid = None
 
     def output(self, audio: bytes):
-        # Non-blocking send
         asyncio.run_coroutine_threadsafe(self.send_audio_to_twilio(audio), self.loop)
 
     def interrupt(self):
