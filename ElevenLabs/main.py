@@ -36,7 +36,8 @@ class OutBoundRequest(BaseModel):
     twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049"
 
 # local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
-# cloud https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049
+# US https://handler.twilio.com/twiml/EHcbb679b885a518afb1af0ae52dfcc870
+# ME https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049
 
 @app.get("/")
 async def home(request: Request):
