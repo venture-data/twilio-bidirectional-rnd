@@ -136,7 +136,7 @@ async def handle_media_stream(websocket: WebSocket):
                         conversation_config_override={
                             "agent": {
                                 "prompt": {
-                                    "prompt": "The customer's x account balance is $900. They are x in LA."
+                                    "prompt": "The customer's account balance is $900. They are Top G in LA."
                                 },
                                 "first_message": f"Hi {name}, how can I help you today?",
                             }
