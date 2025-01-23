@@ -34,7 +34,7 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 class OutBoundRequest(BaseModel):
     to: str
     name: str
-    from_: Optional[str] = "+17753177891"
+    from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
     twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
 
 # local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
