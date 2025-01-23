@@ -79,19 +79,6 @@ async def initiate_outbound_call(request: OutBoundRequest):
 
     return {"status": "initiated", "call_sid": call.sid}
 
-
-# @app.post("/twilio/outbound_call_response")
-# async def outbound_call_response(request: Request):
-#     """
-#     Twilio will hit this endpoint after the call is answered.
-#     We respond with TwiML to connect to our WebSocket.
-#     """
-#     response = VoiceResponse()
-#     connect = Connect()
-#     connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
-#     response.append(connect)
-#     return HTMLResponse(content=str(response), media_type="application/xml")
-
 @app.post("/twilio/twiml")
 async def incoming_call(request: Request):
     print("Incoming call")
