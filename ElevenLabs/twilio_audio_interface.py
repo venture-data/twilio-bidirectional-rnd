@@ -56,11 +56,11 @@ class TwilioAudioInterface(AudioInterface):
 
         if event_type == "start":
             print(f"Full Data: {data["start"]}")
-            
+
             self.stream_sid = data["start"]["streamSid"]
             print(f"streamsid: {data["start"]["streamSid"]}")
 
-            # self.customParameters = data["start"]["customParameters"]
+            self.customParameters = data["start"]["customParameters"]
 
             self.call_sid = data["start"]["callSid"]
             print(f"callsid: {data["start"]["callSid"]}")
