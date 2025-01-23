@@ -10,7 +10,6 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
-# from elevenlabs.conversational_ai.conversation_config import 
 from twilio_audio_interface import TwilioAudioInterface
 from starlette.websockets import WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
