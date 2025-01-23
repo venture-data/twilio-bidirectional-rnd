@@ -4,12 +4,13 @@ import traceback
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request, WebSocket, Response
 from fastapi.responses import HTMLResponse
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 from elevenlabs import ElevenLabs
-from elevenlabs.conversational_ai.conversation import Conversation
+from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
+# from elevenlabs.conversational_ai.conversation_config import 
 from twilio_audio_interface import TwilioAudioInterface
 from starlette.websockets import WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
@@ -33,7 +34,7 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 class OutBoundRequest(BaseModel):
     to: str
     from_: Optional[str] = "+17753177891"
-    twilio_call_url: Optional[str] = "https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049"
+    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
 
 # local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
 # US https://handler.twilio.com/twiml/EHcbb679b885a518afb1af0ae52dfcc870
@@ -91,6 +92,17 @@ async def initiate_outbound_call(request: OutBoundRequest):
 #     response.append(connect)
 #     return HTMLResponse(content=str(response), media_type="application/xml")
 
+@app.post("/twilio/twiml")
+async def incoming_call(request: Request):
+    print("Incoming call")
+    print(request.client.host)
+    twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <Response>
+            <Connect>
+                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream-eleven" />
+            </Connect>
+        </Response>"""
+    return Response(content=twiml_response, media_type="application/xml")
 
 @app.websocket("/media-stream-eleven")
 async def handle_media_stream(websocket: WebSocket):
@@ -105,8 +117,18 @@ async def handle_media_stream(websocket: WebSocket):
     try:
         conversation = Conversation(
             client=eleven_labs_client,
-            agent_id=AGENT_ID,
-            requires_auth=True,  # Security > Enable authentication
+            config=ConversationConfig(
+                conversation_config_override={
+                    "agent": {
+                        "prompt": {
+                            "prompt": "The customer's x account balance is $900. They are x in LA."
+                        },
+                        "first_message": "Hi Axmmar, how can I help you today?",
+                    }
+                }
+            ),
+            agent_id=os.getenv("AGENT_ID"),
+            requires_auth=True,
             audio_interface=audio_interface,
             callback_agent_response=lambda text: print(f"Agent: {text}"),
             callback_user_transcript=lambda text: print(f"User: {text}"),
