@@ -110,7 +110,7 @@ async def handle_media_stream(websocket: WebSocket):
     audio_interface = TwilioAudioInterface(websocket)
     eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-    # name = audio_interface.customParameters.get("name", "DefaultName")
+    name = audio_interface.customParameters.get("name", "DefaultName")
     
     local_call_sid = None
 
