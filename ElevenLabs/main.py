@@ -110,42 +110,46 @@ async def handle_media_stream(websocket: WebSocket):
     audio_interface = TwilioAudioInterface(websocket)
     eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-    name = audio_interface.customParameters.get("name", "DefaultName")
-    
     local_call_sid = None
+    conversation = None  # Initialize conversation as None
 
     try:
-        conversation = Conversation(
-            client=eleven_labs_client,
-            config=ConversationConfig(
-                conversation_config_override={
-                    "agent": {
-                        "prompt": {
-                            "prompt": "The customer's x account balance is $900. They are x in LA."
-                        },
-                        "first_message": f"Hi {name}, how can I help you today?",
-                    }
-                }
-            ),
-            agent_id=os.getenv("AGENT_ID"),
-            requires_auth=True,
-            audio_interface=audio_interface,
-            callback_agent_response=lambda text: print(f"Agent: {text}"),
-            callback_user_transcript=lambda text: print(f"User: {text}"),
-        )
-
-        conversation.start_session()
-        print("Conversation started")
-
         async for message in websocket.iter_text():
             if not message:
                 continue
             
             data = json.loads(message)
+            event_type = data.get("event")
             
-            if data.get("event") == "start":
+            # Handle the message to update audio_interface's state
+            await audio_interface.handle_twilio_message(data)
+            
+            if event_type == "start":
                 local_call_sid = data["start"]["callSid"]
-            await audio_interface.handle_twilio_message(json.loads(message))
+                # Extract the name after processing the start event
+                name = audio_interface.customParameters.get("name", "DefaultName")
+                
+                # Initialize and start the conversation here
+                conversation = Conversation(
+                    client=eleven_labs_client,
+                    config=ConversationConfig(
+                        conversation_config_override={
+                            "agent": {
+                                "prompt": {
+                                    "prompt": "The customer's x account balance is $900. They are x in LA."
+                                },
+                                "first_message": f"Hi {name}, how can I help you today?",
+                            }
+                        }
+                    ),
+                    agent_id=os.getenv("AGENT_ID"),
+                    requires_auth=True,
+                    audio_interface=audio_interface,
+                    callback_agent_response=lambda text: print(f"Agent: {text}"),
+                    callback_user_transcript=lambda text: print(f"User: {text}"),
+                )
+                conversation.start_session()
+                print("Conversation started")
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
@@ -154,12 +158,13 @@ async def handle_media_stream(websocket: WebSocket):
         traceback.print_exc()
     finally:
         try:
-            conversation.end_session()
-            print(f"Call SID: {local_call_sid}")
-            if local_call_sid:
-                twilio_client.calls(local_call_sid).update(status="completed")
-            conversation.wait_for_session_end()
-            print("Conversation ended")
+            if conversation is not None:
+                conversation.end_session()
+                print(f"Call SID: {local_call_sid}")
+                if local_call_sid:
+                    twilio_client.calls(local_call_sid).update(status="completed")
+                conversation.wait_for_session_end()
+                print("Conversation ended")
         except Exception:
             print("Error ending conversation session:")
             traceback.print_exc()
