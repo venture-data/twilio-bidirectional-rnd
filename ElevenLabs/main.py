@@ -13,6 +13,7 @@ from elevenlabs.conversational_ai.conversation import Conversation, Conversation
 from twilio_audio_interface import TwilioAudioInterface
 from starlette.websockets import WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
+from urllib.parse import urlencode
 
 load_dotenv()
 
@@ -32,6 +33,7 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 class OutBoundRequest(BaseModel):
     to: str
+    name: str
     from_: Optional[str] = "+17753177891"
     twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
 
@@ -61,31 +63,41 @@ async def handle_incoming_call(request: Request):
 async def initiate_outbound_call(request: OutBoundRequest):
     """
     Endpoint to initiate an outbound call via Twilio.
-    Expects JSON payload: { "to": "+1234567890", "from_" [OPTIONAL]: "+1098765432", "twiml_url" [OPTIONAL]: "https://...." }
+    Expects JSON payload: { "to": "+1234567890", "from_" [OPTIONAL]: "+1098765432", "twiml_url" [OPTIONAL]: "https://....", "name": "custom_name" }
     """
     to_number = request.to
     from_number = request.from_
+    twiml_url = request.twilio_call_url
+    name = request.name
 
     if not to_number or not from_number:
         return {"error": "Missing 'to' or 'from' phone number"}
 
-    # Make the outbound call
+    if not twiml_url:
+        return {"error": "Missing 'twiml_url'"}
+
+    if name:
+        twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
+
     call = twilio_client.calls.create(
         to=to_number,
         from_=from_number,
-        url=request.twilio_call_url
+        url=twiml_url
     )
 
     return {"status": "initiated", "call_sid": call.sid}
 
 @app.post("/twilio/twiml")
 async def incoming_call(request: Request):
-    print("Incoming call")
-    print(request.client.host)
+    # Extract the 'name' from query parameters
+    name = request.query_params.get("name", "DefaultName")
+    print(f"Making an outgoing call to: {name}")
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
         <Response>
             <Connect>
-                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream-eleven" />
+                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream-eleven">
+                    <Parameter name="name" value="{name}" />
+                </Stream>
             </Connect>
         </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
@@ -97,6 +109,8 @@ async def handle_media_stream(websocket: WebSocket):
 
     audio_interface = TwilioAudioInterface(websocket)
     eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+
+    name = audio_interface.customParameters.get("name", "DefaultName")
     
     local_call_sid = None
 
@@ -109,7 +123,7 @@ async def handle_media_stream(websocket: WebSocket):
                         "prompt": {
                             "prompt": "The customer's x account balance is $900. They are x in LA."
                         },
-                        "first_message": "Hi Axmmar, how can I help you today?",
+                        "first_message": f"Hi {name}, how can I help you today?",
                     }
                 }
             ),

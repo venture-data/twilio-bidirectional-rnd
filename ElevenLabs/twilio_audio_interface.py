@@ -11,6 +11,7 @@ class TwilioAudioInterface(AudioInterface):
         self.input_callback = None
         self.stream_sid = None
         self.call_sid = None
+        self.customParameters = None
         self.loop = asyncio.get_event_loop()
 
     def start(self, input_callback):
@@ -56,8 +57,10 @@ class TwilioAudioInterface(AudioInterface):
         if event_type == "start":
             self.stream_sid = data["start"]["streamSid"]
             print(f"streamsid: {data["start"]["streamSid"]}")
-            # Capture the callSid from the 'start' message
-            # self.call_sid = data["start"].get("callSid", None)
+
+            self.customParameters = data["start"]["customParameters"]
+            print(f"customParameters: {data["start"]["customParameters"]}")
+
             self.call_sid = data["start"]["callSid"]
             print(f"callsid: {data["start"]["callSid"]}")
 
