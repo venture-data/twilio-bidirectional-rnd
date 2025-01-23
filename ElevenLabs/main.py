@@ -1,19 +1,27 @@
+# Standard libraries
 import os
 import json
 import traceback
-from pydantic import BaseModel
+
 from typing import Optional
-from dotenv import load_dotenv
-from fastapi import FastAPI, Request, WebSocket, Response
+from pydantic import BaseModel
+from urllib.parse import urlencode
+
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Request, WebSocket, Response
+
+from starlette.websockets import WebSocketDisconnect
+
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
+
 from elevenlabs import ElevenLabs
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
+
 from twilio_audio_interface import TwilioAudioInterface
-from starlette.websockets import WebSocketDisconnect
-from fastapi.templating import Jinja2Templates
-from urllib.parse import urlencode
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
