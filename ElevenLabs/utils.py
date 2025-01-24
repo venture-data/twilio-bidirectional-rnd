@@ -1,7 +1,4 @@
 from datetime import datetime, timezone, timedelta
-import logging
-
-logger = logging.getLogger(__name__)
 
 def parse_time_to_utc_plus_5(time_str: str) -> str:
     """
@@ -19,5 +16,5 @@ def parse_time_to_utc_plus_5(time_str: str) -> str:
         dt_converted = dt.astimezone(utc_plus_5)
         return dt_converted.isoformat()
     except Exception as e:
-        logger.error(f"Error parsing time string '{time_str}': {e}")
+        print(f"Error parsing time string '{time_str}': {e}")
         raise e

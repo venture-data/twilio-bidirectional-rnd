@@ -1,4 +1,3 @@
-# Standard libraries
 import os
 import json
 import traceback
