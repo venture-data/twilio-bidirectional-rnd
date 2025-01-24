@@ -146,6 +146,7 @@ async def handle_media_stream(websocket: WebSocket):
                             "agent": {
                                 "prompt": {
                                     "prompt": "The customer's account balance is $900. They are Top G in LA."
+                                    " always make haste in ending conversations with customers, if he/she indicates to do so."
                                 },
                                 "first_message": f"Hi {name}, how can I help you today?",
                             }
