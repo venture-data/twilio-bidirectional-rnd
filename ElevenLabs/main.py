@@ -22,14 +22,7 @@ from elevenlabs.conversational_ai.conversation import Conversation, Conversation
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
 from utils import parse_time_to_utc_plus_5
 
-import logging
 from dotenv import load_dotenv
-
-# Initialize logging
-logging.basicConfig(level=logging.DEBUG,  # Set to DEBUG for detailed logs
-                    format="%(asctime)s [%(levelname)s] %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S")
-logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -62,6 +55,8 @@ class OutBoundRequest(BaseModel):
     name: str
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
     twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
+    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
+    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
 
 # local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
 # US https://handler.twilio.com/twiml/EHcbb679b885a518afb1af0ae52dfcc870
@@ -106,9 +101,18 @@ async def initiate_outbound_call(request: OutBoundRequest):
         twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
 
     call = twilio_client.calls.create(
+        record=True,
         to=to_number,
         from_=from_number,
-        url=twiml_url
+        url=twiml_url,
+        recording_status_callback=request.recording_callback_url,
+        recording_status_callback_event=['completed'],
+        status_callback=request.status_callback_url,
+        status_callback_event=[
+            "queued", "ringing", "in-progress",
+            "canceled", "completed", "failed",
+            "busy", "no-answer"
+        ],
     )
 
     return {"status": "initiated", "call_sid": call.sid}
@@ -128,7 +132,7 @@ async def incoming_call(request: Request):
         </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
 
-@app.post("/recording-complete")
+@app.post("/twilio/recording-call-back")
 async def handle_recording_complete(request: Request):
     """
     Endpoint to handle 'action' callbacks for recording completion.
@@ -137,63 +141,63 @@ async def handle_recording_complete(request: Request):
     call_sid = form_data.get("CallSid")
 
     if not call_sid:
-        logger.warning("CallSid is missing in the form data.")
+        print("CallSid is missing in the form data.")
         raise HTTPException(status_code=400, detail="Missing CallSid")
 
     try:
-        logger.info(f"Processing CallSid: {call_sid}")
+        print(f"Processing CallSid: {call_sid}")
         
         # Fetch recordings for the call
-        logger.debug("Fetching recordings for the call.")
+        print("Fetching recordings for the call.")
         recordings = twilio_service.list_recordings(call_sid=call_sid)
-        logger.debug(f"Recordings fetched: {recordings}")
+        print(f"Recordings fetched: {recordings}")
 
         if not recordings:
-            logger.error("No recordings found for the provided CallSid.")
+            print("No recordings found for the provided CallSid.")
             raise HTTPException(status_code=404, detail="No recordings found for the provided CallSid")
         
         # Filter finalized recordings with duration > 0
         finalized_recordings = [r for r in recordings if r.duration and int(r.duration) > 0]
-        logger.debug(f"Finalized recordings: {[{'sid': r.sid, 'duration': r.duration} for r in finalized_recordings]}")
+        print(f"Finalized recordings: {[{'sid': r.sid, 'duration': r.duration} for r in finalized_recordings]}")
 
         if not finalized_recordings:
-            logger.error("No finalized recordings found for the provided CallSid.")
+            print("No finalized recordings found for the provided CallSid.")
             raise HTTPException(status_code=404, detail="No finalized recordings found for the provided CallSid")
         
         # Find the Longest recording
         longest_recording = max(finalized_recordings, key=lambda r: int(r.duration))
-        logger.debug(f"Longest recording SID: {longest_recording.sid}, Duration: {longest_recording.duration}")
+        print(f"Longest recording SID: {longest_recording.sid}, Duration: {longest_recording.duration}")
         
         # Delete other recordings
         for recording in recordings:
             if recording.sid != longest_recording.sid:
-                logger.debug(f"Deleting recording SID: {recording.sid}")
+                print(f"Deleting recording SID: {recording.sid}")
                 twilio_service.delete_recording(recording.sid)
         
         # Check if already processed
         if longest_recording.sid in processed_recordings:
-            logger.info(f"Recording SID {longest_recording.sid} already processed. No action taken.")
+            print(f"Recording SID {longest_recording.sid} already processed. No action taken.")
             return {"message": f"Recording SID {longest_recording.sid} already processed. No action taken."}
         
         # Download the Longest recording
         recording_path = recordings_handler.download_recording(longest_recording.sid)
-        logger.debug(f"Recording downloaded to: {recording_path}")
+        print(f"Recording downloaded to: {recording_path}")
         
         if not recording_path:
-            logger.error("Failed to download recording.")
+            print("Failed to download recording.")
             raise HTTPException(status_code=500, detail="Failed to download recording.")
         
         # Upload to GCS and delete local file and Twilio recording
         recording_public_url = recordings_handler.upload_and_cleanup(recording_path, longest_recording.sid)
-        logger.debug(f"Recording public URL: {recording_public_url}")
+        print(f"Recording public URL: {recording_public_url}")
         
         if not recording_public_url:
-            logger.error("Failed to upload recording to GCS.")
+            print("Failed to upload recording to GCS.")
             raise HTTPException(status_code=500, detail="Failed to upload recording to GCS.")
         
         # Fetch call details
         call_details_dict = twilio_service.fetch_call_details(call_sid)
-        logger.debug(f"Call details fetched: {call_details_dict}")
+        print(f"Call details fetched: {call_details_dict}")
         
         # Convert times to UTC+5
         call_details_dict["start_time"] = parse_time_to_utc_plus_5(call_details_dict.get("start_time"))
@@ -204,20 +208,19 @@ async def handle_recording_complete(request: Request):
           
         # Mark as processed
         processed_recordings.add(longest_recording.sid)
-        logger.debug(f"Marked recording SID {longest_recording.sid} as processed.")
+        print(f"Marked recording SID {longest_recording.sid} as processed.")
         
-        
-        logger.info(f"Successfully processed CallSid {call_sid}.")
+        print(f"Successfully processed CallSid {call_sid}.")
         return {"message": f"Successfully processed CallSid {call_sid}."}
     
     except HTTPException as e:
-        logger.error(f"HTTPException occurred: {e.detail}")
+        print(f"HTTPException occurred: {e.detail}")
         raise e
     except Exception as e:
-        logger.exception(f"Unexpected error processing CallSid {call_sid}: {e}")
+        print(f"Unexpected error processing CallSid {call_sid}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process recordings: {str(e)}")
 
-@app.post("/call-status")
+@app.post("/twilio/call-status")
 async def call_status_callback(request: Request):
     """
     Endpoint to handle Twilio call status callbacks and save details into the database.
