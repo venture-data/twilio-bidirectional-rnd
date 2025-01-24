@@ -1,6 +1,5 @@
 from twilio.rest import Client
 from typing import List, Optional
-import logging
 
 import asyncio
 import base64
@@ -12,8 +11,6 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 import os
 import requests
 
-logger = logging.getLogger(__name__)
-
 
 class TwilioService:
     """
@@ -23,7 +20,7 @@ class TwilioService:
         self.account_sid = account_sid
         self.auth_token = auth_token
         self.client = Client(username=account_sid, password=auth_token)
- 
+        
 
     def delete_recording(self, recording_sid: str):
         """
@@ -33,11 +30,11 @@ class TwilioService:
             recording_sid (str): The SID of the recording to delete.
         """
         try:
-            logger.info(f"Deleting Twilio recording SID: {recording_sid}")
+            print(f"Deleting Twilio recording SID: {recording_sid}")
             self.client.recordings(recording_sid).delete()
-            logger.info(f"Twilio recording SID {recording_sid} deleted.")
+            print(f"Twilio recording SID {recording_sid} deleted.")
         except Exception as e:
-            logger.error(f"Error deleting recording SID {recording_sid} from Twilio: {e}")
+            print(f"Error deleting recording SID {recording_sid} from Twilio: {e}")
             raise e
 
     def fetch_call_details(self, call_sid: str) -> dict:
@@ -51,7 +48,7 @@ class TwilioService:
             dict: A dictionary containing call details.
         """
         try:
-            logger.info(f"Fetching call details for CallSid: {call_sid}")
+            print(f"Fetching call details for CallSid: {call_sid}")
             call_details = self.client.calls(call_sid).fetch()
             # Extract call details
             call_start_time = call_details.start_time.isoformat()
@@ -66,7 +63,7 @@ class TwilioService:
                 "to": call_to
             }
         except Exception as e:
-            logger.error(f"Error fetching call details for CallSid {call_sid}: {e}")
+            print(f"Error fetching call details for CallSid {call_sid}: {e}")
             raise e
 
     def list_recordings(self, call_sid: str) -> List:
@@ -80,11 +77,11 @@ class TwilioService:
             List: A list of recording objects.
         """
         try:
-            logger.info(f"Listing recordings for CallSid: {call_sid}")
+            print(f"Listing recordings for CallSid: {call_sid}")
             recordings = self.client.recordings.list(call_sid=call_sid)
             return recordings
         except Exception as e:
-            logger.error(f"Error listing recordings for CallSid {call_sid}: {e}")
+            print(f"Error listing recordings for CallSid {call_sid}: {e}")
             raise e
         
 class RecordingsHandler:
@@ -106,7 +103,7 @@ class RecordingsHandler:
             Optional[str]: The path to the downloaded recording if successful, None otherwise.
         """
         try:
-            logger.info(f"Downloading recording SID: {recording_sid}")
+            print(f"Downloading recording SID: {recording_sid}")
             recording = self.twilio_service.client.recordings(recording_sid).fetch()
             # Get the recording URL (MP3)
             recording_url = f"https://api.twilio.com{recording.uri.replace('.json', '.mp3')}"
@@ -119,13 +116,13 @@ class RecordingsHandler:
                 recording_path = os.path.join(self.recordings_dir, f"{recording_sid}.mp3")
                 with open(recording_path, "wb") as audio_file:
                     audio_file.write(response.content)
-                logger.info(f"Recording {recording_sid} downloaded to {recording_path}")
+                print(f"Recording {recording_sid} downloaded to {recording_path}")
                 return recording_path
             else:
-                logger.error(f"Failed to download recording: {response.status_code}, {response.text}")
+                print(f"Failed to download recording: {response.status_code}, {response.text}")
                 return None
         except Exception as e:
-            logger.error(f"Error downloading recording {recording_sid}: {e}")
+            print(f"Error downloading recording {recording_sid}: {e}")
             return None
 
 class TwilioAudioInterface(AudioInterface):
