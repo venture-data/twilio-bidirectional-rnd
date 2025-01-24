@@ -187,14 +187,6 @@ async def handle_recording_complete(request: Request):
             print("Failed to download recording.")
             raise HTTPException(status_code=500, detail="Failed to download recording.")
         
-        # Upload to GCS and delete local file and Twilio recording
-        recording_public_url = recordings_handler.upload_and_cleanup(recording_path, longest_recording.sid)
-        print(f"Recording public URL: {recording_public_url}")
-        
-        if not recording_public_url:
-            print("Failed to upload recording to GCS.")
-            raise HTTPException(status_code=500, detail="Failed to upload recording to GCS.")
-        
         # Fetch call details
         call_details_dict = twilio_service.fetch_call_details(call_sid)
         print(f"Call details fetched: {call_details_dict}")
@@ -225,13 +217,15 @@ async def call_status_callback(request: Request):
     """
     Endpoint to handle Twilio call status callbacks and save details into the database.
     """
+    print("Received call status callback.")
+
     form_data = await request.form()
     call_sid = form_data.get("CallSid")
     call_status = form_data.get("CallStatus")
     from_number = form_data.get("From")
     to_number = form_data.get("To")
 
-    print(f"Call SID: {call_sid}, Status: {call_status}, From: {from_number}, To: {to_number}")
+    print(f"STATUS: Call SID: {call_sid}, Status: {call_status}, From: {from_number}, To: {to_number}")
 
     return {"message": "Call status received and saved successfully."}
 
