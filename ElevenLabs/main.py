@@ -120,6 +120,7 @@ async def handle_media_stream(websocket: WebSocket):
 
     local_call_sid = None
     conversation = None  # Initialize conversation as None
+    conversation_logs = []  # List to store conversation logs
 
     try:
         async for message in websocket.iter_text():
@@ -153,8 +154,8 @@ async def handle_media_stream(websocket: WebSocket):
                     agent_id=os.getenv("AGENT_ID"),
                     requires_auth=True,
                     audio_interface=audio_interface,
-                    callback_agent_response=lambda text: print(f"Agent: {text}"),
-                    callback_user_transcript=lambda text: print(f"User: {text}"),
+                    callback_agent_response=lambda text: conversation_logs.append(("Agent", text)),
+                    callback_user_transcript=lambda text: conversation_logs.append(("User", text)),
                 )
                 conversation.start_session()
                 print("Conversation started")
@@ -173,6 +174,12 @@ async def handle_media_stream(websocket: WebSocket):
                     twilio_client.calls(local_call_sid).update(status="completed")
                 conversation.wait_for_session_end()
                 print("Conversation ended")
+
+                # Print the conversation logs after the session has ended
+                print("\nConversation Logs:")
+                for speaker, text in conversation_logs:
+                    print(f"{speaker}: {text}")
+
         except Exception:
             print("Error ending conversation session:")
             traceback.print_exc()
