@@ -118,7 +118,6 @@ class RecordingsHandler:
                     audio_file.write(response.content)
                 print(f"Recording {recording_sid} downloaded to {recording_path}")
                 self.twilio_service.delete_recording(recording_sid)
-                print(f"Recording {recording_sid} deleted from Twilio.")
                 return recording_path
             else:
                 print(f"Failed to download recording: {response.status_code}, {response.text}")
