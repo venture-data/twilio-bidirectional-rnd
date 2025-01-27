@@ -36,3 +36,4 @@ dist/
 
 # Ignore any other unnecessary files
 example.py
+*.mp3
