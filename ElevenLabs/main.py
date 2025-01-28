@@ -15,7 +15,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs import ElevenLabs
+from elevenlabs import ElevenLabs, ConversationalConfig
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -34,6 +34,8 @@ AGENT_ID = os.getenv("AGENT_ID")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 app = FastAPI()
+
+eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 # Initialize Twilio client
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -234,7 +236,6 @@ async def handle_media_stream(websocket: WebSocket):
     print("WebSocket connection opened")
 
     audio_interface = TwilioAudioInterface(websocket)
-    eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
     local_call_sid = None
     conversation = None  # Initialize conversation as None
