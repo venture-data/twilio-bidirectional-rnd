@@ -2,6 +2,7 @@ import os
 import json
 import traceback
 
+from enum import Enum
 from typing import Optional
 from pydantic import BaseModel
 from urllib.parse import urlencode
@@ -306,7 +307,33 @@ async def handle_media_stream(websocket: WebSocket):
             traceback.print_exc()
 
 
+class LLMOptions(str, Enum):
+    """Allowed LLM options"""
+    GPT4O_MINI = "gpt-4o-mini"
+    GPT4O = "gpt-4o"
+    GPT4 = "gpt-4"
+    GPT4_TURBO = "gpt-4-turbo"
+    GPT35_TURBO = "gpt-3.5-turbo"
+    GEMINI15_PRO = "gemini-1.5-pro"
+    GEMINI15_FLASH = "gemini-1.5-flash"
+    GEMINI10_PRO = "gemini-1.0-pro"
+    CLAUDE35_SONNET = "claude-3-5-sonnet"
+    CLAUDE3_HAIKU = "claude-3-haiku"
+    GROK_BETA = "grok-beta"
 
+class CreateAgentRequest(BaseModel):
+    llm: LLMOptions
+    first_message: str
+    system_prompt: str
+
+
+@app.post("/elevenlabs/create_agent")
+async def create_agent(request: Request):
+    """
+    Endpoint to create an agent in ElevenLabs.
+    """
+    agent = eleven_labs_client.create_agent()
+    return {"agent_id": agent["id"], "agent_name": agent["name"]}
 
 # if __name__ == "__main__":
 #     import uvicorn
