@@ -348,7 +348,7 @@ async def create_agent(request: CreateAgentRequest):
     )
 
     agent_id = eleven_labs_client.conversational_ai.create_agent(
-                    conversation_config=ConversationalConfig(),
+                    conversation_config=agend_coinfig,
                 )
     
     return {"agent_id": agent_id}
