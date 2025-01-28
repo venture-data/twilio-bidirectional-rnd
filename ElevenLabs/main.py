@@ -16,7 +16,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs import ElevenLabs, ConversationalConfig
+from elevenlabs import ElevenLabs, ConversationalConfig, AgentConfig, PromptAgent
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -332,6 +332,28 @@ async def create_agent(request: CreateAgentRequest):
     """
     Endpoint to create an agent in ElevenLabs.
     """
+
+    agent_config = AgentConfig(
+        language="en",
+        prompt=PromptAgent(
+            prompt=request.system_prompt,
+            llm=request.llm, 
+            temperature=0.5
+        ),
+        first_message=request.first_message
+    )
+
+    agend_coinfig = ConversationalConfig(
+        agent=agent_config
+    )
+
+    agent_id = eleven_labs_client.conversational_ai.create_agent(
+                    conversation_config=ConversationalConfig(),
+                )
+    
+    return {"agent_id": agent_id}
+
+
 
 
 # if __name__ == "__main__":
