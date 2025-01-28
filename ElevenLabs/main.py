@@ -373,8 +373,6 @@ async def create_agent(request: CreateAgentRequest):
         tts=tts_config
     )
 
-
-
     agent_id = eleven_labs_client.conversational_ai.create_agent(
                     conversation_config=agend_coinfig,
                     name=request.name
