@@ -16,7 +16,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs import ElevenLabs, ConversationalConfig, AgentConfig, PromptAgent
+from elevenlabs import ElevenLabs, ConversationalConfig, AgentConfig, PromptAgent, AsrConversationalConfig, ConversationConfig as cc, TurnConfig, TtsConversationalConfig
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -322,9 +322,12 @@ class LLMOptions(str, Enum):
     GROK_BETA = "grok-beta"
 
 class CreateAgentRequest(BaseModel):
+    name: str
     llm: LLMOptions
     first_message: str
     system_prompt: str
+    voice_id: Optional[str] = "SAz9YHcvj6GT2YYXdXww"
+    language: Optional[str] = "en"
 
 
 @app.post("/elevenlabs/create_agent")
@@ -334,7 +337,7 @@ async def create_agent(request: CreateAgentRequest):
     """
 
     agent_config = AgentConfig(
-        language="en",
+        language=request.language,
         prompt=PromptAgent(
             prompt=request.system_prompt,
             llm=request.llm, 
@@ -343,12 +346,38 @@ async def create_agent(request: CreateAgentRequest):
         first_message=request.first_message
     )
 
-    agend_coinfig = ConversationalConfig(
-        agent=agent_config
+    asr_config = AsrConversationalConfig(
+        user_input_audio_format="ulaw_8000",
     )
+
+    conversation_config = cc(
+        client_events=['user_transcript', 'agent_response', 'interruption']
+    )
+
+    turn_config = TurnConfig(
+        turn_timeout=4,
+        mode='silence'
+    )
+
+    tts_config = TtsConversationalConfig(
+        model_id='eleven_turbo_v2_5',
+        voice_id=request.voice_id,
+        agent_output_audio_format='ulaw_8000',
+    )
+
+    agend_coinfig = ConversationalConfig(
+        agent=agent_config,
+        asr=asr_config,
+        conversation=conversation_config,
+        turn=turn_config,
+        tts=tts_config
+    )
+
+
 
     agent_id = eleven_labs_client.conversational_ai.create_agent(
                     conversation_config=agend_coinfig,
+                    name=request.name
                 )
     
     return {"agent_id": agent_id}
