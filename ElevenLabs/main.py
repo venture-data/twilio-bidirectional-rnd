@@ -329,6 +329,8 @@ class CreateAgentRequest(BaseModel):
     voice_id: Optional[str] = "SAz9YHcvj6GT2YYXdXww"
     language: Optional[str] = "en"
     model_id: Optional[str] = "eleven_turbo_v2_5"
+    stability: Optional[float] = 0.5
+    similarity_boost: Optional[float] = 0.8
 
 
 @app.post("/elevenlabs/create_agent")
@@ -364,6 +366,8 @@ async def create_agent(request: CreateAgentRequest):
         model_id=request.model_id,
         voice_id=request.voice_id,
         agent_output_audio_format='ulaw_8000',
+        stability=request.stability,
+        similarity_boost=request.similarity_boost
     )
 
     agend_coinfig = ConversationalConfig(
