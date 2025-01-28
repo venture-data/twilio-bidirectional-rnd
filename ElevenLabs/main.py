@@ -328,12 +328,11 @@ class CreateAgentRequest(BaseModel):
 
 
 @app.post("/elevenlabs/create_agent")
-async def create_agent(request: Request):
+async def create_agent(request: CreateAgentRequest):
     """
     Endpoint to create an agent in ElevenLabs.
     """
-    agent = eleven_labs_client.create_agent()
-    return {"agent_id": agent["id"], "agent_name": agent["name"]}
+
 
 # if __name__ == "__main__":
 #     import uvicorn
