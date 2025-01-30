@@ -17,7 +17,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
+from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig, ClientTools
 from elevenlabs import (
     ElevenLabs,
     ConversationalConfig,
@@ -31,7 +31,8 @@ from elevenlabs import (
     ConversationInitiationClientDataConfig,
     ConversationConfigClientOverrideConfig,
     AgentConfigOverrideConfig,
-    PromptAgentOverrideConfig
+    PromptAgentOverrideConfig,
+    ClientToolConfig
 )
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -364,13 +365,22 @@ async def create_agent(request: CreateAgentRequest):
     """
     Endpoint to create an agent in ElevenLabs.
     """
+    # client_tool = ClientTools() 
+    # client_tool.register()
 
     agent_config = AgentConfig(
         language=request.language,
         prompt=PromptAgent(
             prompt=request.system_prompt,
             llm=request.llm, 
-            temperature=0.5
+            temperature=0.5,
+            tools=[
+                {
+                    "type": "system",
+                    "description": "Converts text to speech using ElevenLabs API",
+                    "name": "elevenlabs_tts"
+                }
+            ]
         ),
         first_message=request.first_message
     )
@@ -380,7 +390,7 @@ async def create_agent(request: CreateAgentRequest):
     )
 
     conversation_config = cc(
-        client_events=['user_transcript', 'agent_response', 'interruption']
+        client_events=['user_transcript', 'agent_response', 'interruption', 'audio']
     )
 
     turn_config = TurnConfig(
@@ -406,9 +416,9 @@ async def create_agent(request: CreateAgentRequest):
 
     platform_settings = AgentPlatformSettings(
         overrides=ConversationInitiationClientDataConfig(
-            ConversationConfigClientOverrideConfig(
+            conversation_config_override=ConversationConfigClientOverrideConfig(
                 agent=AgentConfigOverrideConfig(
-                    PromptAgentOverrideConfig(
+                    prompt=PromptAgentOverrideConfig(
                         prompt=True
                     ),
                     first_message=True,
@@ -432,10 +442,3 @@ async def create_agent(request: CreateAgentRequest):
         print("No agent_id found")
     
     return CreateAgentResponse(agent_id=agent_id)
-
-
-
-
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
