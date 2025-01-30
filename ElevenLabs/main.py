@@ -263,6 +263,8 @@ async def handle_media_stream(websocket: WebSocket):
                 local_call_sid = data["start"]["callSid"]
                 # Extract the name after processing the start event
                 name = audio_interface.customParameters.get("name", "DefaultName")
+                agent_id = audio_interface.customParameters.get("agent_id", os.getenv("AGENT_ID"))
+                print(f"in /media-stream-eleven Call SID: {local_call_sid}, Name: {name}, Agent ID: {agent_id}")
                 
                 # Initialize and start the conversation here
                 conversation = Conversation(
@@ -279,7 +281,7 @@ async def handle_media_stream(websocket: WebSocket):
                             }
                         }
                     ),
-                    agent_id=os.getenv("AGENT_ID"),
+                    agent_id=agent_id,
                     requires_auth=True,
                     audio_interface=audio_interface,
                     callback_agent_response=lambda text: conversation_logs.append(("Agent", text)),
