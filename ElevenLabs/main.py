@@ -27,7 +27,11 @@ from elevenlabs import (
     ConversationConfig as cc,
     TurnConfig,
     TtsConversationalConfig,
-    AgentPlatformSettings
+    AgentPlatformSettings,
+    ConversationInitiationClientDataConfig,
+    ConversationConfigClientOverrideConfig,
+    AgentConfigOverrideConfig,
+    PromptAgentOverrideConfig
 )
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -400,10 +404,25 @@ async def create_agent(request: CreateAgentRequest):
         tts=tts_config
     )
 
+    platform_settings = AgentPlatformSettings(
+        overrides=ConversationInitiationClientDataConfig(
+            ConversationConfigClientOverrideConfig(
+                agent=AgentConfigOverrideConfig(
+                    PromptAgentOverrideConfig(
+                        prompt=True
+                    ),
+                    first_message=True,
+                    language=True
+                )
+            )
+        )
+    )
+
     agent_id = eleven_labs_client.conversational_ai.create_agent(
                     conversation_config=agend_coinfig,
-                    name=request.name
-                )
+                    name=request.name,
+                    platform_settings=platform_settings
+    )
 
     match = re.search(r"agent_id='([^']+)'", str(agent_id))
     if match:
