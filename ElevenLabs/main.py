@@ -52,14 +52,6 @@ recordings_handler = RecordingsHandler(
 
 processed_recordings = set()
 
-class OutBoundRequest(BaseModel):
-    to: str
-    name: str
-    from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
-    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
-    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
-
 # local https://handler.twilio.com/twiml/EH27222b10726db3571bf103a8c4b222b5
 # US https://handler.twilio.com/twiml/EHcbb679b885a518afb1af0ae52dfcc870
 # ME https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049
@@ -82,6 +74,15 @@ async def handle_incoming_call(request: Request):
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
+class OutBoundRequest(BaseModel):
+    to: str
+    name: str
+    agent_id: Optional[str] = os.getenv("AGENT_ID")
+    from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
+    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
+    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
+    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
+
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
     """
@@ -92,6 +93,7 @@ async def initiate_outbound_call(request: OutBoundRequest):
     from_number = request.from_
     twiml_url = request.twilio_call_url
     name = request.name
+    agent_id = request.agent_id
 
     if not to_number or not from_number:
         return {"error": "Missing 'to' or 'from' phone number"}
@@ -101,6 +103,8 @@ async def initiate_outbound_call(request: OutBoundRequest):
 
     if name:
         twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
+    if agent_id:
+        twiml_url = f"{twiml_url}&{urlencode({'agent_id': agent_id})}"
 
     call = twilio_client.calls.create(
         record=True,
@@ -123,12 +127,14 @@ async def initiate_outbound_call(request: OutBoundRequest):
 async def incoming_call(request: Request):
     # Extract the 'name' from query parameters
     name = request.query_params.get("name", "DefaultName")
+    agent_id = request.query_params.get("agent_id", os.getenv("AGENT_ID"))
     print(f"Making an outgoing call to: {name}")
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
         <Response>
             <Connect>
                 <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream-eleven">
                     <Parameter name="name" value="{name}" />
+                    <Parameter name="agent_id" value="{agent_id}" />
                 </Stream>
             </Connect>
         </Response>"""
