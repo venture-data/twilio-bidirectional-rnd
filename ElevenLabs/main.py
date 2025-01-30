@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import traceback
 
@@ -393,6 +394,13 @@ async def create_agent(request: CreateAgentRequest):
                     conversation_config=agend_coinfig,
                     name=request.name
                 )
+
+    match = re.search(r"agent_id='([^']+)'", str(agent_id))
+    if match:
+        agent_id = match.group(1)
+        print(f"Extracted agent_id: {agent_id}")
+    else: 
+        print("No agent_id found")
     
     return CreateAgentResponse(agent_id=agent_id)
 
