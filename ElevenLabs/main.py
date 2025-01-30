@@ -332,8 +332,11 @@ class CreateAgentRequest(BaseModel):
     stability: Optional[float] = 0.5
     similarity_boost: Optional[float] = 0.8
 
+class CreateAgentResponse(BaseModel):
+    agent_id: str
 
-@app.post("/elevenlabs/create_agent")
+
+@app.post("/elevenlabs/create_agent", response_model=CreateAgentResponse)
 async def create_agent(request: CreateAgentRequest):
     """
     Endpoint to create an agent in ElevenLabs.
@@ -383,7 +386,7 @@ async def create_agent(request: CreateAgentRequest):
                     name=request.name
                 )
     
-    return {"agent_id": agent_id}
+    return CreateAgentResponse(agent_id=agent_id)
 
 
 
