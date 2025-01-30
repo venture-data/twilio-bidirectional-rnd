@@ -326,7 +326,7 @@ class CreateAgentRequest(BaseModel):
     llm: LLMOptions
     first_message: str
     system_prompt: str
-    voice_id: Optional[str] = "SAz9YHcvj6GT2YYXdXww"
+    voice_id: Optional[str] = "UgBBYS2sOqTuMpoF3BR0"
     language: Optional[str] = "en"
     model_id: Optional[str] = "eleven_turbo_v2_5"
     stability: Optional[float] = 0.5
