@@ -17,7 +17,7 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig, ClientTools
+from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
 from elevenlabs import (
     ElevenLabs,
     ConversationalConfig,
@@ -32,21 +32,25 @@ from elevenlabs import (
     ConversationConfigClientOverrideConfig,
     AgentConfigOverrideConfig,
     PromptAgentOverrideConfig,
-    ClientToolConfig
 )
 
-from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
-from utils import parse_time_to_utc_plus_5
+from .twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
+from .utils import parse_time_to_utc_plus_5
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Validate Twilio credentials
+TWILIO_ACCOUNT_SID = os.getenv("ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("AUTH_TOKEN")
+
+if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
+    raise ValueError("ACCOUNT_SID and AUTH_TOKEN must be set in .env file")
+
 # Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
-TWILIO_ACCOUNT_SID = os.getenv("ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 AGENT_ID = os.getenv("AGENT_ID")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
@@ -376,9 +380,19 @@ async def create_agent(request: CreateAgentRequest):
             temperature=0.5,
             tools=[
                 {
-                    "type": "system",
+                    "type": "client",
                     "description": "Converts text to speech using ElevenLabs API",
-                    "name": "elevenlabs_tts"
+                    "name": "elevenlabs_tts",
+                    "api_schema": {
+                        "type": "object",
+                        "properties": {
+                            "text": {
+                                "type": "string",
+                                "description": "The text to convert to speech"
+                            }
+                        },
+                        "required": ["text"]
+                    }
                 }
             ]
         ),
@@ -422,7 +436,7 @@ async def create_agent(request: CreateAgentRequest):
                         prompt=True
                     ),
                     first_message=True,
-                    language=True
+                    language=True,
                 )
             )
         )
