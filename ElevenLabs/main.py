@@ -336,7 +336,7 @@ class CreateAgentRequest(BaseModel):
     llm: Optional[LLMOptions] = LLMOptions.GPT4O_MINI
     voice_id: Optional[str] = "UgBBYS2sOqTuMpoF3BR0"
     language: Optional[str] = "en"
-    model_id: Optional[str] = "eleven_turbo_v2_5"
+    # model_id: Optional[str] = "eleven_turbo_v2_5"
     stability: Optional[float] = 0.5
     similarity_boost: Optional[float] = 0.8
 
@@ -374,7 +374,7 @@ async def create_agent(request: CreateAgentRequest):
     )
 
     tts_config = TtsConversationalConfig(
-        model_id=request.model_id,
+        # model_id=request.model_id,
         voice_id=request.voice_id,
         agent_output_audio_format='ulaw_8000',
         stability=request.stability,
