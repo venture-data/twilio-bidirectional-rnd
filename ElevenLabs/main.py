@@ -18,7 +18,17 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
-from elevenlabs import ElevenLabs, ConversationalConfig, AgentConfig, PromptAgent, AsrConversationalConfig, ConversationConfig as cc, TurnConfig, TtsConversationalConfig
+from elevenlabs import (
+    ElevenLabs,
+    ConversationalConfig,
+    AgentConfig,
+    PromptAgent,
+    AsrConversationalConfig,
+    ConversationConfig as cc,
+    TurnConfig,
+    TtsConversationalConfig,
+    AgentPlatformSettings
+)
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
 from utils import parse_time_to_utc_plus_5
