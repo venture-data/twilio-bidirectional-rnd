@@ -331,9 +331,9 @@ class LLMOptions(str, Enum):
 
 class CreateAgentRequest(BaseModel):
     name: str
-    llm: LLMOptions
     first_message: str
     system_prompt: str
+    llm: Optional[LLMOptions] = LLMOptions.GPT4O_MINI
     voice_id: Optional[str] = "UgBBYS2sOqTuMpoF3BR0"
     language: Optional[str] = "en"
     model_id: Optional[str] = "eleven_turbo_v2_5"
