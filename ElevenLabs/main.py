@@ -377,8 +377,8 @@ async def create_agent(request: CreateAgentRequest):
             tools=[
                 {
                     "type": "system",
-                    "description": "Converts text to speech using ElevenLabs API",
-                    "name": "elevenlabs_tts"
+                    "description": "Gives agent the ability to end the call with the user.",
+                    "name": "end_call",
                 }
             ]
         ),
