@@ -17,7 +17,8 @@ from starlette.websockets import WebSocketDisconnect
 from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
-from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig, ClientTools
+from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
+from elevenlabs.types.knowledge_base_locator import KnowledgeBaseLocator
 from elevenlabs import (
     ElevenLabs,
     ConversationalConfig,
@@ -32,7 +33,6 @@ from elevenlabs import (
     ConversationConfigClientOverrideConfig,
     AgentConfigOverrideConfig,
     PromptAgentOverrideConfig,
-    ClientToolConfig
 )
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
