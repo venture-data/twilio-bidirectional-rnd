@@ -388,9 +388,9 @@ async def create_agent(request: CreateAgentRequest):
             ],
             knowledge_base=[
                 {
-                    "type": "url",
+                    "type": "file",
                     "name": "Venture-Data-About-Us",
-                    "id": "https://storage.googleapis.com/callspro-testing/About%20Us%20Content.docx"
+                    "id": "About Us Content.docx"
                 }
             ]
         ),
