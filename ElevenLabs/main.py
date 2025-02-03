@@ -18,7 +18,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
-from elevenlabs.types.knowledge_base_locator import KnowledgeBaseLocator
+# from elevenlabs.types.knowledge_base_locator import KnowledgeBaseLocator
 from elevenlabs import (
     ElevenLabs,
     ConversationalConfig,
@@ -270,7 +270,7 @@ async def handle_media_stream(websocket: WebSocket):
                 continue
             
             # Log the raw incoming message
-            print(f"Received message: {message}")
+            # print(f"Received message: {message}")
             
             data = json.loads(message)
             event_type = data.get("event")
@@ -292,11 +292,13 @@ async def handle_media_stream(websocket: WebSocket):
                         conversation_config_override={
                             "agent": {
                                 "prompt": {
-                                    "prompt": "The customer's account balance is $900. They are Top G in LA."
-                                    " always make haste in ending conversations with customers, if he/she indicates to do so."
-                                    " Don't ask follow up questions if the customer is not interested in continuing the conversation."
+                                    "prompt": "You are a support agent named Haider representing a data and AI services company. "
+                                    "Your goal is to land clients by promoting services like chatbots, fraud detection, customer segmentation, and sales forecasting. "
+                                    "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 3-4 sentences. "
+                                    "Never repeat the user's own words back to them. "
+                                    "Use the knowledge base to provide more information about the company when asked."
                                 },
-                                "first_message": f"Hi {name}, how can I help you today?",
+                                "first_message": f"Hi {name}, I'm Haider from Venture Data, would you like to know about us?",
                             }
                         }
                     ),
@@ -391,6 +393,13 @@ async def create_agent(request: CreateAgentRequest):
                     "type": "system",
                     "description": "Gives agent the ability to end the call with the user.",
                     "name": "end_call",
+                }
+            ],
+            knowledge_base=[
+                {
+                    "type": "url",
+                    "name": "Venture-Data-About-Us",
+                    "id": "https://storage.googleapis.com/callspro-testing/About%20Us%20Content.docx"
                 }
             ]
         ),
