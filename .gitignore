@@ -7,3 +7,4 @@ __pycache__
 recordings/
 *.json
 *.docx
+*.csv
