@@ -311,18 +311,10 @@ async def handle_media_stream(websocket: WebSocket):
                 conversation.start_session()
                 print("Conversation started")
 
-            # Check for session end event from ElevenLabs
-            if event_type == "session_end":  # Replace "session_end" with the actual event type from logs
-                print("ElevenLabs session ended, updating Twilio and closing WebSocket")
-                if local_call_sid:
-                    twilio_client.calls(local_call_sid).update(status="completed")
-                await websocket.close()
-                break  # Exit the message loop
-
     except WebSocketDisconnect:
         print("WebSocket disconnected")
-    except Exception as e:
-        print(f"Error occurred in WebSocket handler: {e}")
+    except Exception:
+        print("Error occurred in WebSocket handler:")
         traceback.print_exc()
     finally:
         try:
@@ -330,7 +322,6 @@ async def handle_media_stream(websocket: WebSocket):
                 conversation.end_session()
                 print(f"Call SID: {local_call_sid}")
                 if local_call_sid:
-                    # Ensure Twilio is updated even if the event wasn't caught in the loop
                     twilio_client.calls(local_call_sid).update(status="completed")
                 conversation.wait_for_session_end()
                 print("Conversation ended")
@@ -340,8 +331,8 @@ async def handle_media_stream(websocket: WebSocket):
                 for speaker, text in conversation_logs:
                     print(f"{speaker}: {text}")
 
-        except Exception as e:
-            print(f"Error ending conversation session: {e}")
+        except Exception:
+            print("Error ending conversation session:")
             traceback.print_exc()
 
 
