@@ -32,7 +32,7 @@ from elevenlabs import (
     ConversationInitiationClientDataConfig,
     ConversationConfigClientOverrideConfig,
     AgentConfigOverrideConfig,
-    PromptAgentOverrideConfig,
+    PromptAgentOverrideConfig
 )
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -291,13 +291,13 @@ async def handle_media_stream(websocket: WebSocket):
                         conversation_config_override={
                             "agent": {
                                 "prompt": {
-                                    "prompt": "You are a support agent named Haider representing a data and AI services company. "
+                                    "prompt": "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
                                     "Your goal is to land clients by promoting services like chatbots, fraud detection, customer segmentation, and sales forecasting. "
                                     "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 3-4 sentences. "
                                     "Never repeat the user's own words back to them. "
-                                    "Use the knowledge base to provide more information about the company when asked."
+                                    "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu"
                                 },
-                                "first_message": f"Hi {name}, I'm Haider from Venture Data, would you like to know about us?",
+                                "first_message": f"Hi {name}!",
                             }
                         }
                     ),
