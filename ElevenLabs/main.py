@@ -389,7 +389,7 @@ async def create_agent(request: CreateAgentRequest):
             knowledge_base=[
                 {
                     "type": "file",
-                    "name": "Venture-Data-About-Us",
+                    "name": "About Us Content.docx",
                     "id": "About Us Content.docx"
                 }
             ]
