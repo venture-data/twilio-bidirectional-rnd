@@ -62,8 +62,7 @@ twilio_service = TwilioService(
 )
 
 recordings_handler = RecordingsHandler(
-    twilio_service=twilio_service,
-    recordings_dir="recordings"
+    twilio_service=twilio_service
 )
 
 processed_recordings = set()

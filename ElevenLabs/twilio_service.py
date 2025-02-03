@@ -11,6 +11,8 @@ from starlette.websockets import WebSocketDisconnect, WebSocketState
 import os
 import requests
 
+import tempfile
+from aws_handler import AWSHandler
 
 class TwilioService:
     """
@@ -88,9 +90,9 @@ class RecordingsHandler:
     """
     Handles recording operations: downloading from Twilio, uploading to GCS, and cleanup.
     """
-    def __init__(self, twilio_service: TwilioService, recordings_dir: str):
+    def __init__(self, twilio_service: TwilioService):
         self.twilio_service = twilio_service
-        self.recordings_dir = recordings_dir
+        self.aws_handler = AWSHandler()
 
     def download_recording(self, recording_sid: str) -> Optional[str]:
         """
@@ -102,26 +104,37 @@ class RecordingsHandler:
         Returns:
             Optional[str]: The path to the downloaded recording if successful, None otherwise.
         """
+        temp_path = None
         try:
-            print(f"Downloading recording SID: {recording_sid}")
+            print(f"Processing recording SID: {recording_sid}")
             recording = self.twilio_service.client.recordings(recording_sid).fetch()
-            # Get the recording URL (MP3)
+            call_sid = recording.call_sid
+            
+            # Get recording URL and download
             recording_url = f"https://api.twilio.com{recording.uri.replace('.json', '.mp3')}"
-            # Download the recording using stored credentials
             response = requests.get(
                 recording_url,
-                auth=(self.twilio_service.account_sid, self.twilio_service.auth_token)
+                auth=(self.twilio_service.account_sid, self.twilio_service.auth_token),
+                timeout=10
             )
-            if response.status_code == 200:
-                recording_path = os.path.join(self.recordings_dir, f"{recording_sid}.mp3")
-                with open(recording_path, "wb") as audio_file:
-                    audio_file.write(response.content)
-                print(f"Recording {recording_sid} downloaded to {recording_path}")
-                self.twilio_service.delete_recording(recording_sid)
-                return recording_path
-            else:
-                print(f"Failed to download recording: {response.status_code}, {response.text}")
-                return None
+            response.raise_for_status()
+
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
+                temp_file.write(response.content)
+                temp_path = temp_file.name
+
+            print(f"Temporarily stored recording at {temp_path}")
+
+            s3_url = self.aws_handler.upload_recording(
+                local_path=temp_path, 
+                call_sid=call_sid,
+                recording_sid=recording_sid
+            )
+
+            # Only delete from Twilio after successful upload
+            self.twilio_service.delete_recording(recording_sid)
+            print(f"Successfully processed recording {recording_sid}")
+            return s3_url
         except Exception as e:
             print(f"Error downloading recording {recording_sid}: {e}")
             return None
