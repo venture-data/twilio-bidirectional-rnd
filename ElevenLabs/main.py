@@ -300,7 +300,7 @@ async def handle_media_stream(websocket: WebSocket):
                                     "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
                                     "The user will probably speak in Hindi but always respond in Urdu. "
                                 },
-                                "first_message": f"Hi {name}! Maine Venture Data say baat kar raha hun. Hum data aur AI services provide karte hain. ",
+                                "first_message": f"Aslamuailikum {name}! Maine Venture Data say baat kar raha hun. Hum data aur AI services provide karte hain. ",
                             }
                         }
                     ),
