@@ -40,6 +40,8 @@ from utils import parse_time_to_utc_plus_5
 
 from dotenv import load_dotenv
 
+import httpx
+
 load_dotenv()
 
 # Jinja2 templates
@@ -368,11 +370,9 @@ class CreateAgentResponse(BaseModel):
 @app.post("/elevenlabs/create_agent", response_model=CreateAgentResponse)
 async def create_agent(request: CreateAgentRequest):
     """
-    Endpoint to create an agent in ElevenLabs.
+    Endpoint to create an agent in ElevenLabs and upload knowledge base document.
     """
-    # client_tool = ClientTools() 
-    # client_tool.register()
-
+    # First create agent without knowledge base
     agent_config = AgentConfig(
         language=request.language,
         prompt=PromptAgent(
@@ -386,13 +386,6 @@ async def create_agent(request: CreateAgentRequest):
                     "name": "end_call",
                 }
             ],
-            knowledge_base=[
-                {
-                    "type": "file",
-                    "name": "About Us Content.docx",
-                    "id": "About Us Content.docx"
-                }
-            ]
         ),
         first_message=request.first_message
     )
@@ -411,7 +404,6 @@ async def create_agent(request: CreateAgentRequest):
     )
 
     tts_config = TtsConversationalConfig(
-        # model_id=request.model_id,
         voice_id=request.voice_id,
         agent_output_audio_format='ulaw_8000',
         stability=request.stability,
@@ -439,18 +431,56 @@ async def create_agent(request: CreateAgentRequest):
             )
         )
     )
-
     agent_id = eleven_labs_client.conversational_ai.create_agent(
-                    conversation_config=agend_coinfig,
-                    name=request.name,
-                    platform_settings=platform_settings
+        conversation_config=agend_coinfig,
+        name=request.name,
+        platform_settings=platform_settings
     )
-
     match = re.search(r"agent_id='([^']+)'", str(agent_id))
-    if match:
-        agent_id = match.group(1)
-        print(f"Extracted agent_id: {agent_id}")
-    else: 
-        print("No agent_id found")
+    if not match:
+        raise HTTPException(status_code=500, detail="Failed to extract agent_id")
     
+    agent_id = match.group(1)
+    print(f"Created agent with ID: {agent_id}")
+
+    try:
+        files = {
+            'file': ('About Us Content.docx', open('About Us Content.docx', 'rb'), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        }
+        headers = {
+            'xi-api-key': ELEVENLABS_API_KEY
+        }
+        
+        upload_url = f"https://api.elevenlabs.io/v1/convai/agents/{agent_id}/add-to-knowledge-base"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(upload_url, headers=headers, files=files)
+            response.raise_for_status()
+            kb_data = response.json()
+            kb_id = kb_data.get('id')
+            print(f"Successfully uploaded knowledge base document. KB ID: {kb_id}")
+
+            patch_url = f"https://api.elevenlabs.io/v1/convai/agents/{agent_id}"
+            patch_data = {
+                "conversation_config": {
+                    "agent": {
+                        "prompt": {
+                            "knowledge_base": [
+                                {
+                                    "type": "file",
+                                    "name": "About Us Content.docx",
+                                    "id": kb_id
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+            patch_response = await client.patch(patch_url, headers=headers, json=patch_data)
+            patch_response.raise_for_status()
+            print(f"Successfully updated agent with knowledge base")
+
+    except Exception as e:
+        print(f"Error handling knowledge base: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to handle knowledge base: {str(e)}")
+
     return CreateAgentResponse(agent_id=agent_id)
