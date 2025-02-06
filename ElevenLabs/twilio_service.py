@@ -202,8 +202,8 @@ class TwilioAudioInterface(AudioInterface):
         self.stream_sid = None
         self.call_sid = None
 
-    def output(self, audio: bytes):
-        asyncio.run_coroutine_threadsafe(self.send_audio_to_twilio(audio), self.loop)
+    # def output(self, audio: bytes):
+    #     asyncio.run_coroutine_threadsafe(self.send_audio_to_twilio(audio), self.loop)
 
     def interrupt(self):
         asyncio.run_coroutine_threadsafe(self.send_clear_message_to_twilio(), self.loop)
