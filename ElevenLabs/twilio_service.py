@@ -8,7 +8,7 @@ from fastapi import WebSocket
 from elevenlabs.conversational_ai.conversation import AudioInterface
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-import os
+import audioop
 import requests
 
 import tempfile
@@ -141,12 +141,58 @@ class RecordingsHandler:
 
 class TwilioAudioInterface(AudioInterface):
     def __init__(self, websocket: WebSocket):
+        super().__init__()
         self.websocket = websocket
         self.input_callback = None
         self.stream_sid = None
         self.call_sid = None
         self.customParameters = None
         self.loop = asyncio.get_event_loop()
+        self.background_noise = None
+        self.background_pos = 0
+
+    def load_background_noise(self, file_path: str):
+        """Load background noise from a file."""
+        with open(file_path, 'rb') as f:
+            self.background_noise = f.read()
+        print(f"Loaded background noise: {len(self.background_noise)} bytes")
+
+    def mix_with_background(self, audio_bytes: bytes) -> bytes:
+        """Mix AI audio with background noise."""
+        if not self.background_noise:
+            return audio_bytes
+        
+        bg_ulaw = self._get_background_ulaw(len(audio_bytes))
+        if not bg_ulaw:
+            return audio_bytes
+        
+        # Convert to PCM and mix
+        ai_pcm = audioop.ulaw2lin(audio_bytes, 2)
+        bg_pcm = audioop.ulaw2lin(bg_ulaw, 2)
+        mixed_pcm = audioop.add(ai_pcm, bg_pcm, 2)
+        mixed_ulaw = audioop.lin2ulaw(mixed_pcm, 2)
+        return mixed_ulaw
+
+    def _get_background_ulaw(self, length: int) -> bytes:
+        """Retrieve background bytes, looping as needed."""
+        bg_ulaw = bytearray()
+        remaining = length
+        while remaining > 0:
+            end_pos = self.background_pos + remaining
+            if end_pos <= len(self.background_noise):
+                bg_ulaw.extend(self.background_noise[self.background_pos:end_pos])
+                self.background_pos = end_pos
+                remaining = 0
+            else:
+                bg_ulaw.extend(self.background_noise[self.background_pos:])
+                remaining -= (len(self.background_noise) - self.background_pos)
+                self.background_pos = 0
+        return bytes(bg_ulaw)
+
+    def output(self, audio: bytes):
+        """Send mixed audio to Twilio."""
+        mixed_audio = self.mix_with_background(audio)
+        asyncio.run_coroutine_threadsafe(self.send_audio_to_twilio(mixed_audio), self.loop)
 
     def start(self, input_callback):
         self.input_callback = input_callback

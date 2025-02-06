@@ -260,18 +260,16 @@ async def handle_media_stream(websocket: WebSocket):
     print("WebSocket connection opened")
 
     audio_interface = TwilioAudioInterface(websocket)
+    audio_interface.load_background_noise("background.ulaw")
 
     local_call_sid = None
-    conversation = None  # Initialize conversation as None
-    conversation_logs = []  # List to store conversation logs
+    conversation = None
+    conversation_logs = []
 
     try:
         async for message in websocket.iter_text():
             if not message:
                 continue
-            
-            # Log the raw incoming message
-            # print(f"Received message: {message}")
             
             data = json.loads(message)
             event_type = data.get("event")
