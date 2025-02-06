@@ -260,7 +260,7 @@ async def handle_media_stream(websocket: WebSocket):
     print("WebSocket connection opened")
 
     audio_interface = TwilioAudioInterface(websocket)
-    audio_interface.load_background_noise("background.ulaw")
+    audio_interface.load_background_noise("call-center-youtube-01.ulaw")
 
     local_call_sid = None
     conversation = None
