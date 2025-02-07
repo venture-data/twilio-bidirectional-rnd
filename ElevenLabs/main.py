@@ -274,11 +274,11 @@ async def handle_media_stream(websocket: WebSocket):
             data = json.loads(message)
             event_type = data.get("event")
             
-            # Handle the message to update audio_interface's state
             await audio_interface.handle_twilio_message(data)
             
             if event_type == "start":
                 local_call_sid = data["start"]["callSid"]
+                await audio_interface.start_background_stream()  # Start streaming
                 
                 # Extract the name after processing the start event
                 name = audio_interface.customParameters.get("name", "DefaultName")
@@ -318,6 +318,7 @@ async def handle_media_stream(websocket: WebSocket):
         traceback.print_exc()
     finally:
         try:
+            await audio_interface.stop_background_stream()
             if conversation is not None:
                 conversation.end_session()
                 print(f"Call SID: {local_call_sid}")
