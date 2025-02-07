@@ -153,8 +153,8 @@ class TwilioAudioInterface(AudioInterface):
         self.background_task = None
         self.running = False
         self.ai_audio_queue = asyncio.Queue()
-        self.chunk_size = 160  # 20ms chunks at 8000Hz
-        self.background_volume = 0.5  # Adjust background volume (0.0 to 1.0)
+        self.chunk_size = 160
+        self.background_volume = 0.5 
 
     def load_background_noise(self, file_path: str):
         """Load background noise from a file."""
