@@ -168,7 +168,6 @@ async def initiate_outbound_call(request: OutBoundRequest):
 
 @app.post("/twilio/twiml")
 async def incoming_call(request: Request):
-    # Extract the 'name' from query parameters
     name = request.query_params.get("name", "DefaultName")
     agent_id = request.query_params.get("agent_id", os.getenv("AGENT_ID"))
     agent_provider = request.query_params.get("agent_provider", os.getenv("agent_provider"))
