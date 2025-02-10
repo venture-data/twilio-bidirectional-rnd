@@ -175,7 +175,7 @@ async def incoming_call(request: Request):
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
         <Response>
             <Connect>
-                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/media-stream-eleven">
+                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
                     <Parameter name="name" value="{name}" />
                     <Parameter name="agent_id" value="{agent_id}" />
                 </Stream>
@@ -437,7 +437,7 @@ async def media_stream(websocket: WebSocket):
         print(f"Error: {e}")
         await openai_ws.close()
 
-@app.websocket("/media-stream-eleven")
+@app.websocket("/elevenlabs/media-stream")
 async def handle_media_stream(websocket: WebSocket):
     await websocket.accept()
     print("WebSocket connection opened")
