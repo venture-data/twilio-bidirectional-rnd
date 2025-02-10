@@ -113,7 +113,7 @@ async def handle_incoming_call(request: Request):
 
     response = VoiceResponse()
     connect = Connect()
-    connect.stream(url=f"wss://{request.url.hostname}/media-stream-eleven")
+    connect.stream(url=f"wss://{request.url.hostname}/elevenlabs/media-stream")
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
@@ -148,6 +148,8 @@ async def initiate_outbound_call(request: OutBoundRequest):
         twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
     if agent_id:
         twiml_url = f"{twiml_url}&{urlencode({'agent_id': agent_id})}"
+        
+    twiml_url = f"{twiml_url}&{urlencode({'agent_provider': 'openai'})}"
 
     call = twilio_client.calls.create(
         record=True,
