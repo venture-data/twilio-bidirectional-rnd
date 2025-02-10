@@ -171,16 +171,28 @@ async def incoming_call(request: Request):
     # Extract the 'name' from query parameters
     name = request.query_params.get("name", "DefaultName")
     agent_id = request.query_params.get("agent_id", os.getenv("AGENT_ID"))
+    agent_provider = request.query_params.get("agent_provider", os.getenv("agent_provider"))
     print(f"Making an outgoing call to: {name}")
-    twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-            <Connect>
-                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
-                    <Parameter name="name" value="{name}" />
-                    <Parameter name="agent_id" value="{agent_id}" />
-                </Stream>
-            </Connect>
-        </Response>"""
+    if agent_provider == 'openai':
+        twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Connect>
+                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/openai/media-stream">
+                        <Parameter name="name" value="{name}" />
+                        <Parameter name="agent_id" value="{agent_id}" />
+                    </Stream>
+                </Connect>
+            </Response>"""
+    else:
+        twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+            <Response>
+                <Connect>
+                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
+                        <Parameter name="name" value="{name}" />
+                        <Parameter name="agent_id" value="{agent_id}" />
+                    </Stream>
+                </Connect>
+            </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
 
 @app.post("/twilio/recording-call-back")
