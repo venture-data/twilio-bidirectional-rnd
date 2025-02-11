@@ -20,7 +20,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect
 from twilio.rest import Client
 
 from elevenlabs.conversational_ai.conversation import Conversation, ConversationConfig
-# from elevenlabs.types.knowledge_base_locator import KnowledgeBaseLocator
+
 from elevenlabs import (
     ElevenLabs,
     ConversationalConfig,
@@ -63,7 +63,7 @@ SYSTEM_MESSAGE = (
     "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
     "The user will probably speak in Hindi but always respond in Urdu. "
 )
-VOICE = "verse"
+VOICE = "alloy" # verse, alloy, 
 LOG_EVENT_TYPES = [
     "error",
     "response.content.done",
@@ -117,12 +117,13 @@ async def handle_incoming_call(request: Request):
 
 class OutBoundRequest(BaseModel):
     to: str
-    name: str
+    name: Optional[str] = "Ammar"
+    language: Optional[str] = "english"
     agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
-    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
-    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
+    twilio_call_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/twiml"
+    recording_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/recording-call-back"
+    status_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/call-status"
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -147,7 +148,8 @@ async def initiate_outbound_call(request: OutBoundRequest):
     if agent_id:
         twiml_url = f"{twiml_url}&{urlencode({'agent_id': agent_id})}"
         
-    twiml_url = f"{twiml_url}&{urlencode({'agent_provider': 'openai'})}"
+    if request.language == 'urdu':
+        twiml_url = f"{twiml_url}&{urlencode({'agent_provider': 'openai'})}"
 
     call = twilio_client.calls.create(
         record=True,
@@ -176,7 +178,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/openai/media-stream">
+                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/openai/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -186,7 +188,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
+                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/elevenlabs/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -338,16 +340,15 @@ async def media_stream(websocket: WebSocket):
                         {
                             "type": "input_text",
                             "text": (
-                                "The upcoming Plumbing Maintenance due in February. "
-                                "You'll ask the user about it, keep the conversation to the points, avoid hallucinations. "
-                                "Just make up some date and time to book the appointment. For context Today is 15th January 2025, "
-                                "To book an appointment, you can say something like 'I can book the appointment for you on 15th February at 10:00 AM'. "
-                                "Start with greeting Nikolai, your name is Alex from Cardinal Plumbing. "
-                                "Ideally, we want to book the appointment on 10th February at 10:00 AM. "
-                                "After greeting, wait for his response before continuing the conversation to keep it natural. "
-                                "For context, the working hours are from 9:00 AM to 5:00 PM, Monday to Friday. "
-                                "Remember to Speak Fast. Make sure to keep an Arizona/southern accent and add some filler words like 'uh', 'um', hmm, 'let me check', 'alright.. hmm', 'like', 'you know', etc. to sound more natural. "
-                                "Don't sound too excited, just talk in a normal, calm tone. also in the statr keep it short like: Hi, am I speaking to Nikolai? "
+                                "You're a bot who understands and talks in Urdu mainly. "
+                                "You're on a call with Ammar. "
+                                "You are a support agent named Haider. "
+                                "You represent a data and AI services company and are tasked to land clients to use your services.  "
+                                "You are very friendly and enthusiastic and really want to help the customer. "
+                                "Your main task is to land clients, tell that your company deals in AI and data services such as chatbots, fraud detections, customer segmentation, sales forecasting etc, if asked then tell the services in detail and how the client company can benefit from it. "
+                                "try to Answer in about 1- 2 sentences. Keep answers concise and like a natural conversations. Do add some filler wirds like: hmm, umm, let me check, let me think, ah, etc. "
+                                "Remember to keep answers to the point and don't repeat back the users response.    "
+                                "Hi Ammar, I'm Haider from Venture Data. We're a Data and AI company. How are you today?"
                             ),
                         }
                     ],
@@ -492,7 +493,7 @@ async def handle_media_stream(websocket: WebSocket):
                                         "try to Answer in about 1- 2 sentences. Keep answers concise and like a natural conversations. Do add some filler wirds like: hmm, umm, let me check, let me think, ah, etc. "
                                         "Remember to keep answerst to the point and don't repeat back the users response."
                                 },
-                                "first_message": f"Hi {name}, I'm Haider from Venture Data. We're a Data and AI company. I see alot of potential in your business  are you interested in knowing more about this?",
+                                "first_message": f"Hi {name}, I'm Haider from Venture Data. We're a Data and AI company. How are you today?",
                             }
                         }
                     ),
