@@ -27,4 +27,4 @@ COPY . /app/
 EXPOSE 8080
 
 # Command to run the application
-CMD ["fastapi", "dev", "./ElevenLabs/main.py", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+CMD ["fastapi", "dev", "ElevenLabs/main.py", "--host", "0.0.0.0", "--port", "8080", "--reload"]
