@@ -139,6 +139,8 @@ class RecordingsHandler:
             print(f"Error downloading recording {recording_sid}: {e}")
             return None
 
+# In twilio_service.py
+
 class TwilioAudioInterface(AudioInterface):
     def __init__(self, websocket: WebSocket):
         super().__init__()
@@ -148,21 +150,22 @@ class TwilioAudioInterface(AudioInterface):
         self.call_sid = None
         self.customParameters = None
         self.loop = asyncio.get_event_loop()
+
         self.background_noise = None
         self.background_pos = 0
         self.background_task = None
         self.running = False
+
         self.ai_audio_queue = asyncio.Queue()
-        self.chunk_size = 160
-        self.background_volume = 0.5 
+        self.chunk_size = 160  # 20ms of audio at 8KHz
+        self.background_volume = 0.5
 
     def load_background_noise(self, file_path: Optional[str]):
-        """Load background noise from a file. Pass None to disable."""
+        """Load background noise from a file. Pass None to disable (use silence)."""
         self.background_noise = None
         if file_path is None:
-            print("Background noise disabled")
+            print("Background noise disabled (will send silence).")
             return
-
         try:
             with open(file_path, 'rb') as f:
                 self.background_noise = f.read()
@@ -171,11 +174,7 @@ class TwilioAudioInterface(AudioInterface):
             print(f"Error loading background noise: {str(e)}")
 
     async def start_background_stream(self):
-        """Start continuous background noise streaming."""
-        if not self.background_noise:
-            print("No background noise loaded. Skipping background stream.")
-            return
-
+        """Always start the background (or silence) streaming loop."""
         self.running = True
         self.background_task = asyncio.create_task(self._stream_background())
 
@@ -186,30 +185,38 @@ class TwilioAudioInterface(AudioInterface):
             await self.background_task
 
     async def _stream_background(self):
-        """Continuous background noise streaming loop."""
+        """Continuous streaming loop: either background noise or silence, plus AI mixing."""
         while self.running and self.stream_sid:
             try:
-                # Get background chunk
-                bg_chunk = self._get_background_chunk(self.chunk_size)
-                
-                # Adjust background volume
-                bg_chunk = self._adjust_volume(bg_chunk, self.background_volume)
-                
-                # Check for AI audio to mix
+                # 1) Get background chunk or silence
+                if self.background_noise:
+                    bg_chunk = self._get_background_chunk(self.chunk_size)
+                    # Optionally adjust background volume
+                    bg_chunk = self._adjust_volume(bg_chunk, self.background_volume)
+                else:
+                    # Generate 160 bytes of mu-law silence (0xFF is silence in G.711 u-law)
+                    bg_chunk = b'\xFF' * self.chunk_size
+
+                # 2) Check for AI audio to mix
                 ai_chunk = await self._get_ai_chunk()
-                
-                # Mix audio if needed
-                mixed_audio = self.mix_chunks(bg_chunk, ai_chunk) if ai_chunk else bg_chunk
-                
-                # Send the audio
+
+                # 3) Mix or just use background if no AI chunk
+                if ai_chunk:
+                    mixed_audio = self.mix_chunks(bg_chunk, ai_chunk)
+                else:
+                    mixed_audio = bg_chunk
+
+                # 4) Send the final chunk to Twilio
                 await self.send_audio_to_twilio(mixed_audio)
-                await asyncio.sleep(0.02)  # Maintain 20ms interval
+
+                # Sleep ~20ms to maintain real-time pacing
+                await asyncio.sleep(0.02)
             except Exception as e:
                 print(f"Error in background stream: {str(e)}")
                 break
 
     def _get_background_chunk(self, length: int) -> bytes:
-        """Get next background chunk (looping)."""
+        """Get next background chunk (loop if needed)."""
         chunk = bytearray()
         remaining = length
         while remaining > 0:
@@ -224,15 +231,15 @@ class TwilioAudioInterface(AudioInterface):
                 self.background_pos = 0
         return bytes(chunk)
 
-    async def _get_ai_chunk(self):
-        """Get AI audio chunk if available."""
+    async def _get_ai_chunk(self) -> Optional[bytes]:
+        """Get AI audio chunk if available, or None if not."""
         try:
             return self.ai_audio_queue.get_nowait()
         except asyncio.QueueEmpty:
             return None
 
     def mix_chunks(self, bg_chunk: bytes, ai_chunk: bytes) -> bytes:
-        """Mix background and AI audio chunks."""
+        """Mix background and AI audio chunks using audioop."""
         try:
             bg_pcm = audioop.ulaw2lin(bg_chunk, 2)
             ai_pcm = audioop.ulaw2lin(ai_chunk, 2)
@@ -240,13 +247,12 @@ class TwilioAudioInterface(AudioInterface):
             return audioop.lin2ulaw(mixed_pcm, 2)
         except Exception as e:
             print(f"Error mixing audio chunks: {str(e)}")
-            return bg_chunk  # Fallback to background only
+            return bg_chunk  # Fallback to background/silence only
 
     def _adjust_volume(self, audio_chunk: bytes, volume: float) -> bytes:
         """Adjust the volume of an audio chunk."""
         if volume == 1.0:
-            return audio_chunk  # No adjustment needed
-
+            return audio_chunk
         try:
             pcm = audioop.ulaw2lin(audio_chunk, 2)
             adjusted_pcm = audioop.mul(pcm, 2, volume)
@@ -256,13 +262,13 @@ class TwilioAudioInterface(AudioInterface):
             return audio_chunk
 
     def output(self, audio: bytes):
-        """Handle AI audio output (queue for mixing)."""
+        """Receive AI audio from ElevenLabs and queue it for mixing."""
+        # If .start_background_stream() never ran, self.running is False
         if not self.running:
             return
-
-        # Split AI audio into chunks matching background stream timing
+        # Break AI audio into smaller chunks so it fits our 20ms cycle
         for i in range(0, len(audio), self.chunk_size):
-            chunk = audio[i:i + self.chunk_size]
+            chunk = audio[i : i + self.chunk_size]
             self.loop.call_soon_threadsafe(self.ai_audio_queue.put_nowait, chunk)
 
     def start(self, input_callback):
@@ -274,9 +280,11 @@ class TwilioAudioInterface(AudioInterface):
         self.call_sid = None
 
     def interrupt(self):
+        # Clears the audio buffer in Twilio
         asyncio.run_coroutine_threadsafe(self.send_clear_message_to_twilio(), self.loop)
 
     async def send_audio_to_twilio(self, audio: bytes):
+        """Actually send the final (mixed) mu-law audio chunk to Twilio."""
         if self.stream_sid:
             audio_payload = base64.b64encode(audio).decode("utf-8")
             audio_delta = {
@@ -291,6 +299,7 @@ class TwilioAudioInterface(AudioInterface):
                 pass
 
     async def send_clear_message_to_twilio(self):
+        """Sends a 'clear' event to Twilio to flush buffers if needed."""
         if self.stream_sid:
             clear_message = {"event": "clear", "streamSid": self.stream_sid}
             try:
@@ -301,16 +310,11 @@ class TwilioAudioInterface(AudioInterface):
 
     async def handle_twilio_message(self, data):
         event_type = data.get("event")
-
         if event_type == "start":
-            print(f"Full Data: {data['start']}")
             self.stream_sid = data["start"]["streamSid"]
-            print(f"streamsid: {data['start']['streamSid']}")
             self.customParameters = data["start"]["customParameters"]
             self.call_sid = data["start"]["callSid"]
-            print(f"callsid: {data['start']['callSid']}")
-
-            # Start background streaming when call starts
+            # Always start background stream, even if it's just silence
             await self.start_background_stream()
 
         elif event_type == "media" and self.input_callback:
