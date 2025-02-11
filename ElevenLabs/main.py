@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import FastAPI, Request, WebSocket, Response, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 import websockets
 import asyncio
@@ -78,6 +79,14 @@ SHOW_TIMING_MATH = False
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 eleven_labs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 # Initialize Twilio client
@@ -97,10 +106,13 @@ processed_recordings = set()
 # US https://handler.twilio.com/twiml/EHcbb679b885a518afb1af0ae52dfcc870
 # ME https://handler.twilio.com/twiml/EH0e5171711df88a1c641f721ac0ae7049
 
-@app.get("/")
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+# @app.get("/")
+# async def home(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/")
+def read_root():
+    return {"message": "Hello, World!"}
 
 @app.post("/twilio/inbound_call")
 async def handle_incoming_call(request: Request):
