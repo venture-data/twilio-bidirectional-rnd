@@ -133,9 +133,9 @@ class OutBoundRequest(BaseModel):
     language: Optional[str] = "english"
     agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
-    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
-    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
+    twilio_call_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/twiml"
+    recording_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/recording-call-back"
+    status_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/call-status"
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -190,7 +190,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/openai/media-stream">
+                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/openai/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -200,7 +200,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
+                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/elevenlabs/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
