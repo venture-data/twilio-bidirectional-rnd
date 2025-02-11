@@ -468,7 +468,7 @@ async def handle_media_stream(websocket: WebSocket):
     print("WebSocket connection opened")
 
     audio_interface = TwilioAudioInterface(websocket)
-    audio_interface.load_background_noise(None)
+    # audio_interface.load_background_noise(None)
 
     local_call_sid = None
     conversation = None
@@ -486,7 +486,7 @@ async def handle_media_stream(websocket: WebSocket):
             
             if event_type == "start":
                 local_call_sid = data["start"]["callSid"]
-                await audio_interface.start_background_stream()  # Start streaming
+                # await audio_interface.start_background_stream() 
                 
                 # Extract the name after processing the start event
                 name = audio_interface.customParameters.get("name", "DefaultName")
@@ -526,7 +526,7 @@ async def handle_media_stream(websocket: WebSocket):
         traceback.print_exc()
     finally:
         try:
-            await audio_interface.stop_background_stream()
+            # await audio_interface.stop_background_stream()
             if conversation is not None:
                 conversation.end_session()
                 print(f"Call SID: {local_call_sid}")
@@ -564,12 +564,14 @@ class CreateAgentRequest(BaseModel):
     first_message: str
     system_prompt: str
     llm: Optional[LLMOptions] = LLMOptions.GPT4O_MINI
-    voice_id: Optional[str] = "UgBBYS2sOqTuMpoF3BR0"
+    voice_id: Optional[str] = "2BJW5coyhAzSr8STdHbE" 
     language: Optional[str] = "en"
     # model_id: Optional[str] = "eleven_turbo_v2_5"
     stability: Optional[float] = 0.5
     similarity_boost: Optional[float] = 0.8
 
+#  2BJW5coyhAzSr8STdHbE
+#  UgBBYS2sOqTuMpoF3BR0
 class CreateAgentResponse(BaseModel):
     agent_id: str
 
