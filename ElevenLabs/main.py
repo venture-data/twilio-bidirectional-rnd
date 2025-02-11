@@ -55,6 +55,7 @@ TWILIO_AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 AGENT_ID = os.getenv("AGENT_ID")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+BASE_URL = os.getenv("BASE_URL")
 
 SYSTEM_MESSAGE = (
     "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
@@ -133,9 +134,9 @@ class OutBoundRequest(BaseModel):
     language: Optional[str] = "english"
     agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/twiml"
-    recording_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/recording-call-back"
-    status_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/call-status"
+    twilio_call_url: Optional[str] = f"https://{BASE_URL}/twilio/twiml"
+    recording_callback_url: Optional[str] = f"https://{BASE_URL}/twilio/recording-call-back"
+    status_callback_url: Optional[str] = f"https://{BASE_URL}/twilio/call-status"
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -190,7 +191,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/openai/media-stream">
+                    <Stream url="wss://{BASE_URL}/openai/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -200,7 +201,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/elevenlabs/media-stream">
+                    <Stream url="wss://{BASE_URL}/elevenlabs/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>

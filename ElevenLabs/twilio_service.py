@@ -156,15 +156,19 @@ class TwilioAudioInterface(AudioInterface):
         self.chunk_size = 160
         self.background_volume = 0.5 
 
-    def load_background_noise(self, file_path: str):
-        """Load background noise from a file."""
+    def load_background_noise(self, file_path: Optional[str]):
+        """Load background noise from a file. Pass None to disable."""
+        self.background_noise = None
+        if file_path is None:
+            print("Background noise disabled")
+            return
+
         try:
             with open(file_path, 'rb') as f:
                 self.background_noise = f.read()
             print(f"Loaded background noise: {len(self.background_noise)} bytes")
         except Exception as e:
             print(f"Error loading background noise: {str(e)}")
-            self.background_noise = None
 
     async def start_background_stream(self):
         """Start continuous background noise streaming."""
