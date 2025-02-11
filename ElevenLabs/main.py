@@ -58,10 +58,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SYSTEM_MESSAGE = (
     "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
     "Your goal is to land clients by promoting services like chatbots, fraud detection, customer segmentation, and sales forecasting. "
-    "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 3-4 sentences. "
+    "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 1-2 sentences. "
     "Never repeat the user's own words back to them. "
     "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
-    "The user will probably speak in Hindi but always respond in Urdu. "
+    "You will always respond in Urdu. "
 )
 VOICE = "alloy" # verse, alloy, 
 LOG_EVENT_TYPES = [
@@ -121,9 +121,9 @@ class OutBoundRequest(BaseModel):
     language: Optional[str] = "english"
     agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/twiml"
-    recording_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/recording-call-back"
-    status_callback_url: Optional[str] = "https://bidirectional-me-547752509861.me-central1.run.app/twilio/call-status"
+    twilio_call_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/twiml"
+    recording_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/recording-call-back"
+    status_callback_url: Optional[str] = "https://deadly-adapted-joey.ngrok-free.app/twilio/call-status"
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -178,7 +178,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/openai/media-stream">
+                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/openai/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -188,7 +188,7 @@ async def incoming_call(request: Request):
         twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
             <Response>
                 <Connect>
-                    <Stream url="wss://bidirectional-me-547752509861.me-central1.run.app/elevenlabs/media-stream">
+                    <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
                         <Parameter name="name" value="{name}" />
                         <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
@@ -348,7 +348,7 @@ async def media_stream(websocket: WebSocket):
                                 "Your main task is to land clients, tell that your company deals in AI and data services such as chatbots, fraud detections, customer segmentation, sales forecasting etc, if asked then tell the services in detail and how the client company can benefit from it. "
                                 "try to Answer in about 1- 2 sentences. Keep answers concise and like a natural conversations. Do add some filler wirds like: hmm, umm, let me check, let me think, ah, etc. "
                                 "Remember to keep answers to the point and don't repeat back the users response.    "
-                                "Hi Ammar, I'm Haider from Venture Data. We're a Data and AI company. How are you today?"
+                                "start with by saying this: Asalam o Alaikum Ammar, main Haider hoon Venture Data se. Hum AI aur data services provide karte hain. Aaj aap kaise hain?"
                             ),
                         }
                     ],
