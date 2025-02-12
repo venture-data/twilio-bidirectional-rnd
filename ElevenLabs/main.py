@@ -57,14 +57,6 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 
-SYSTEM_MESSAGE = (
-    "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
-    "Your goal is to land clients by promoting services like chatbots, fraud detection, customer segmentation, and sales forecasting. "
-    "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 1-2 sentences. "
-    "Never repeat the user's own words back to them. "
-    "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
-    "You will always respond in Urdu. "
-)
 VOICE = "alloy" # verse, alloy, 
 LOG_EVENT_TYPES = [
     "error",
@@ -316,6 +308,15 @@ async def media_stream(websocket: WebSocket):
     last_assistant_item = None
     mark_queue = []
     response_start_timestamp_twilio = None
+    
+    SYSTEM_MESSAGE = (
+        "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
+        "Your goal is to land clients by promoting services like chatbots, fraud detection, customer segmentation, and sales forecasting. "
+        "Be friendly/enthusiastic, use filler words (hmm, ah, etc.), and keep responses to 1-2 sentences. "
+        "Never repeat the user's own words back to them. "
+        "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
+        "You will always respond in Urdu. "
+    )
 
     try:
         openai_ws = await websockets.connect(
