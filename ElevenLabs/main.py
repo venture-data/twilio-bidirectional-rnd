@@ -186,7 +186,6 @@ async def incoming_call(request: Request):
                 <Connect>
                     <Stream url="wss://{BASE_URL}/openai/media-stream">
                         <Parameter name="name" value="{name}" />
-                        <Parameter name="agent_id" value="{agent_id}" />
                     </Stream>
                 </Connect>
             </Response>"""
@@ -310,6 +309,7 @@ async def media_stream(websocket: WebSocket):
     last_assistant_item = None
     mark_queue = []
     response_start_timestamp_twilio = None
+    name = "DefaultName"  # Default value
     
     SYSTEM_MESSAGE = (
         "You are a support agent (talk in Urdu) named Haider representing a data and AI services company. "
@@ -321,6 +321,7 @@ async def media_stream(websocket: WebSocket):
     )
 
     async def initialize_session():
+        nonlocal name
         session_update = {
             "type": "session.update",
             "session": {
@@ -337,6 +338,7 @@ async def media_stream(websocket: WebSocket):
         await send_initial_conversation_item()
 
     async def send_initial_conversation_item():
+        nonlocal name
         initial_conversation_item = {
             "type": "conversation.item.create",
             "item": {
@@ -346,7 +348,7 @@ async def media_stream(websocket: WebSocket):
                     "type": "input_text",
                     "text": (
                         "You're a bot who understands and talks in Urdu mainly. "
-                        "You're on a call with Ammar. "
+                        f"You're on a call with {name}. "  # Use dynamic name here
                         "You are a support agent named Haider. "
                         "You represent a data and AI services company and are tasked to land clients to use your services.  "
                         "You are very friendly and enthusiastic and really want to help the customer. "
@@ -393,7 +395,17 @@ async def media_stream(websocket: WebSocket):
             mark_queue.append("responsePart")
 
     try:
-        # Connect to OpenAI's realtime API
+            # Wait for Twilio start event to get parameters
+        while True:
+            data = await websocket.receive_json()
+            await audio_interface.handle_twilio_message(data)
+            if data.get("event") == "start":
+                # Extract parameters from Twilio start event
+                name = audio_interface.customParameters.get("name", "DefaultName")
+                print(f"Call started with parameters - Name: {name}")
+                break
+
+        # Connect to OpenAI after getting parameters
         openai_ws = await websockets.connect(
             "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01",
             additional_headers={
@@ -413,7 +425,7 @@ async def media_stream(websocket: WebSocket):
 
         audio_interface.start(input_callback)
 
-        # Initialize OpenAI session
+        # Initialize OpenAI session with dynamic name
         await initialize_session()
 
         # Handle OpenAI messages

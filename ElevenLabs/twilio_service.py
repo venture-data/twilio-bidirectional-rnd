@@ -145,13 +145,121 @@ class TwilioAudioInterface(AudioInterface):
     def __init__(self, websocket: WebSocket):
         super().__init__()
         self.websocket = websocket
-        self.call_sid = None
-        self.stream_sid = None
-        self.customParameters = None
-
-        self.loop = asyncio.get_event_loop()
         self.input_callback = None
+        self.stream_sid = None
+        self.call_sid = None
+        self.customParameters = None
+        self.loop = asyncio.get_event_loop()
+
+        self.background_noise = None
+        self.background_pos = 0
+        self.background_task = None
         self.running = False
+
+        self.ai_audio_queue = asyncio.Queue()
+        self.chunk_size = 160  # 20ms of audio at 8KHz
+        self.background_volume = 0.5
+
+    def load_background_noise(self, file_path: Optional[str]):
+        """Load background noise from a file. Pass None to disable (use silence)."""
+        self.background_noise = None
+        if file_path is None:
+            print("Background noise disabled (will send silence).")
+            return
+        try:
+            with open(file_path, 'rb') as f:
+                self.background_noise = f.read()
+            print(f"Loaded background noise: {len(self.background_noise)} bytes")
+        except Exception as e:
+            print(f"Error loading background noise: {str(e)}")
+
+    async def start_background_stream(self):
+        """Always start the background (or silence) streaming loop."""
+        self.running = True
+        self.background_task = asyncio.create_task(self._stream_background())
+
+    async def stop_background_stream(self):
+        """Stop background streaming."""
+        self.running = False
+        if self.background_task:
+            await self.background_task
+
+    async def _stream_background(self):
+        """Continuous streaming loop: either background noise or silence, plus AI mixing."""
+        while self.running and self.stream_sid:
+            try:
+                # 1) Get background chunk or silence
+                if self.background_noise:
+                    bg_chunk = self._get_background_chunk(self.chunk_size)
+                    # Optionally adjust background volume
+                    bg_chunk = self._adjust_volume(bg_chunk, self.background_volume)
+                else:
+                    # Generate 160 bytes of mu-law silence (0xFF is silence in G.711 u-law)
+                    bg_chunk = b'\xFF' * self.chunk_size
+
+                # 2) Check for AI audio to mix
+                ai_chunk = await self._get_ai_chunk()
+
+                # 3) Mix or just use background if no AI chunk
+                if ai_chunk:
+                    mixed_audio = self.mix_chunks(bg_chunk, ai_chunk)
+                else:
+                    mixed_audio = bg_chunk
+
+                # 4) Send the final chunk to Twilio
+                await self.send_audio_to_twilio(mixed_audio)
+
+                # Sleep ~20ms to maintain real-time pacing
+                await asyncio.sleep(0.02)
+            except Exception as e:
+                print(f"Error in background stream: {str(e)}")
+                break
+
+    def _get_background_chunk(self, length: int) -> bytes:
+        """Get next background chunk (loop if needed)."""
+        chunk = bytearray()
+        remaining = length
+        while remaining > 0:
+            end = self.background_pos + remaining
+            if end <= len(self.background_noise):
+                chunk.extend(self.background_noise[self.background_pos:end])
+                self.background_pos = end
+                remaining = 0
+            else:
+                chunk.extend(self.background_noise[self.background_pos:])
+                remaining -= len(self.background_noise) - self.background_pos
+                self.background_pos = 0
+        return bytes(chunk)
+
+    async def _get_ai_chunk(self) -> Optional[bytes]:
+        """Get AI audio chunk if available, or None if not."""
+        try:
+            return self.ai_audio_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
+
+    def mix_chunks(self, bg_chunk: bytes, ai_chunk: bytes) -> bytes:
+        """Mix background and AI audio chunks using audioop."""
+        try:
+            bg_pcm = audioop.ulaw2lin(bg_chunk, 2)
+            ai_pcm = audioop.ulaw2lin(ai_chunk, 2)
+            mixed_pcm = audioop.add(bg_pcm, ai_pcm, 2)
+            return audioop.lin2ulaw(mixed_pcm, 2)
+        except Exception as e:
+            print(f"Error mixing audio chunks: {str(e)}")
+            return bg_chunk  # Fallback to background/silence only
+
+    def _adjust_volume(self, audio_chunk: bytes, volume: float) -> bytes:
+        """Adjust the volume of an audio chunk."""
+        if volume == 1.0:
+            return audio_chunk
+        try:
+            pcm = audioop.ulaw2lin(audio_chunk, 2)
+            adjusted_pcm = audioop.mul(pcm, 2, volume)
+            return audioop.lin2ulaw(adjusted_pcm, 2)
+        except Exception as e:
+            print(f"Error adjusting volume: {str(e)}")
+            return audio_chunk
 
     def start(self, input_callback):
         """
