@@ -184,6 +184,21 @@ class TwilioAudioInterface(AudioInterface):
         if self.background_task:
             await self.background_task
 
+    async def send_audio_to_twilio(self, audio: bytes):
+        """Actually send the final (mixed) mu-law audio chunk to Twilio."""
+        if self.stream_sid:
+            audio_payload = base64.b64encode(audio).decode("utf-8")
+            audio_delta = {
+                "event": "media",
+                "streamSid": self.stream_sid,
+                "media": {"payload": audio_payload},
+            }
+            try:
+                if self.websocket.application_state == WebSocketState.CONNECTED:
+                    await self.websocket.send_text(json.dumps(audio_delta))
+            except (WebSocketDisconnect, RuntimeError):
+                pass
+
     async def _stream_background(self):
         """Continuous streaming loop: either background noise or silence, plus AI mixing."""
         while self.running and self.stream_sid:

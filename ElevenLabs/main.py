@@ -485,7 +485,7 @@ async def handle_media_stream(websocket: WebSocket):
     print("WebSocket connection opened")
 
     audio_interface = TwilioAudioInterface(websocket)
-    # audio_interface.load_background_noise(None)
+    audio_interface.load_background_noise('call-center-youtube-01.ulaw')
 
     local_call_sid = None
     conversation = None
@@ -503,7 +503,7 @@ async def handle_media_stream(websocket: WebSocket):
             
             if event_type == "start":
                 local_call_sid = data["start"]["callSid"]
-                # await audio_interface.start_background_stream() 
+                await audio_interface.start_background_stream() 
                 
                 # Extract the name after processing the start event
                 name = audio_interface.customParameters.get("name", "DefaultName")
@@ -543,7 +543,7 @@ async def handle_media_stream(websocket: WebSocket):
         traceback.print_exc()
     finally:
         try:
-            # await audio_interface.stop_background_stream()
+            await audio_interface.stop_background_stream()
             if conversation is not None:
                 conversation.end_session()
                 print(f"Call SID: {local_call_sid}")
