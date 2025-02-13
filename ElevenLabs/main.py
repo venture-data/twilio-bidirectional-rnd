@@ -44,6 +44,7 @@ from utils import parse_time_to_utc_plus_5
 from dotenv import load_dotenv
 
 import httpx
+import base64
 
 load_dotenv()
 
@@ -303,7 +304,8 @@ async def media_stream(websocket: WebSocket):
     await websocket.accept()
     print("Client connected")
 
-    stream_sid = None
+    audio_interface = TwilioAudioInterface(websocket)
+    openai_ws = None
     latest_media_timestamp = 0
     last_assistant_item = None
     mark_queue = []
@@ -318,7 +320,80 @@ async def media_stream(websocket: WebSocket):
         "You will always respond in Urdu. "
     )
 
+    async def initialize_session():
+        session_update = {
+            "type": "session.update",
+            "session": {
+                "turn_detection": {"type": "server_vad"},
+                "input_audio_format": "g711_ulaw",
+                "output_audio_format": "g711_ulaw",
+                "voice": VOICE,
+                "instructions": SYSTEM_MESSAGE,
+                "modalities": ["text", "audio"],
+                "temperature": 0.6,
+            },
+        }
+        await openai_ws.send(json.dumps(session_update))
+        await send_initial_conversation_item()
+
+    async def send_initial_conversation_item():
+        initial_conversation_item = {
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message",
+                "role": "user",
+                "content": [{
+                    "type": "input_text",
+                    "text": (
+                        "You're a bot who understands and talks in Urdu mainly. "
+                        "You're on a call with Ammar. "
+                        "You are a support agent named Haider. "
+                        "You represent a data and AI services company and are tasked to land clients to use your services.  "
+                        "You are very friendly and enthusiastic and really want to help the customer. "
+                        "Your main task is to land clients, tell that your company deals in AI and data services such as chatbots, fraud detections, customer segmentation, sales forecasting etc, if asked then tell the services in detail and how the client company can benefit from it. "
+                        "try to Answer in about 1- 2 sentences. Keep answers concise and like a natural conversations. Do add some filler wirds like: hmm, umm, let me check, let me think, ah, etc. "
+                        "Remember to keep answers to the point and don't repeat back the users response.    "
+                        "start with by saying this: Asalam o Alaikum Ammar, main Haider hoon Venture Data se. Hum AI aur data services provide karte hain. Aaj aap kaise hain?"
+                    ),
+                }],
+            },
+        }
+        await openai_ws.send(json.dumps(initial_conversation_item))
+        await openai_ws.send(json.dumps({"type": "response.create"}))
+
+    async def handle_speech_started_event():
+        nonlocal mark_queue, response_start_timestamp_twilio, last_assistant_item
+        if mark_queue and response_start_timestamp_twilio is not None:
+            elapsed_time = int(latest_media_timestamp) - int(response_start_timestamp_twilio)
+            if SHOW_TIMING_MATH:
+                print(f"Elapsed time for truncation: {elapsed_time}ms")
+
+            if last_assistant_item:
+                truncate_event = {
+                    "type": "conversation.item.truncate",
+                    "item_id": last_assistant_item,
+                    "content_index": 0,
+                    "audio_end_ms": elapsed_time,
+                }
+                await openai_ws.send(json.dumps(truncate_event))
+
+            await websocket.send_json({"event": "clear", "streamSid": audio_interface.stream_sid})
+            mark_queue = []
+            last_assistant_item = None
+            response_start_timestamp_twilio = None
+
+    async def send_mark():
+        if audio_interface.stream_sid:
+            mark_event = {
+                "event": "mark",
+                "streamSid": audio_interface.stream_sid,
+                "mark": {"name": "responsePart"},
+            }
+            await websocket.send_json(mark_event)
+            mark_queue.append("responsePart")
+
     try:
+        # Connect to OpenAI's realtime API
         openai_ws = await websockets.connect(
             "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01",
             additional_headers={
@@ -327,85 +402,23 @@ async def media_stream(websocket: WebSocket):
             },
         )
 
-        async def initialize_session():
-            print("Initializing session")
-            session_update = {
-                "type": "session.update",
-                "session": {
-                    "turn_detection": {"type": "server_vad"},
-                    "input_audio_format": "g711_ulaw",
-                    "output_audio_format": "g711_ulaw",
-                    "voice": VOICE,
-                    "instructions": SYSTEM_MESSAGE,
-                    "modalities": ["text", "audio"],
-                    "temperature": 0.6,
-                },
+        # Setup audio forwarding
+        def input_callback(audio_bytes: bytes):
+            audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
+            message = {
+                "type": "input_audio_buffer.append",
+                "audio": audio_b64,
             }
-            await openai_ws.send(json.dumps(session_update))
-            await send_initial_conversation_item()
+            asyncio.create_task(openai_ws.send(json.dumps(message)))
 
-        async def send_initial_conversation_item():
-            initial_conversation_item = {
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": (
-                                "You're a bot who understands and talks in Urdu mainly. "
-                                "You're on a call with Ammar. "
-                                "You are a support agent named Haider. "
-                                "You represent a data and AI services company and are tasked to land clients to use your services.  "
-                                "You are very friendly and enthusiastic and really want to help the customer. "
-                                "Your main task is to land clients, tell that your company deals in AI and data services such as chatbots, fraud detections, customer segmentation, sales forecasting etc, if asked then tell the services in detail and how the client company can benefit from it. "
-                                "try to Answer in about 1- 2 sentences. Keep answers concise and like a natural conversations. Do add some filler wirds like: hmm, umm, let me check, let me think, ah, etc. "
-                                "Remember to keep answers to the point and don't repeat back the users response.    "
-                                "start with by saying this: Asalam o Alaikum Ammar, main Haider hoon Venture Data se. Hum AI aur data services provide karte hain. Aaj aap kaise hain?"
-                            ),
-                        }
-                    ],
-                },
-            }
-            await openai_ws.send(json.dumps(initial_conversation_item))
-            await openai_ws.send(json.dumps({"type": "response.create"}))
+        audio_interface.start(input_callback)
 
-        async def handle_speech_started_event():
-            nonlocal mark_queue, response_start_timestamp_twilio, last_assistant_item
-            if mark_queue and response_start_timestamp_twilio is not None:
-                elapsed_time = int(latest_media_timestamp) - int(response_start_timestamp_twilio)
-                if SHOW_TIMING_MATH:
-                    print(f"Elapsed time for truncation: {elapsed_time}ms")
+        # Initialize OpenAI session
+        await initialize_session()
 
-                if last_assistant_item:
-                    truncate_event = {
-                        "type": "conversation.item.truncate",
-                        "item_id": last_assistant_item,
-                        "content_index": 0,
-                        "audio_end_ms": elapsed_time,
-                    }
-                    await openai_ws.send(json.dumps(truncate_event))
-
-                await websocket.send_json({"event": "clear", "streamSid": stream_sid})
-
-                # Reset
-                mark_queue = []
-                last_assistant_item = None
-                response_start_timestamp_twilio = None
-
-        async def send_mark():
-            if stream_sid:
-                mark_event = {
-                    "event": "mark",
-                    "streamSid": stream_sid,
-                    "mark": {"name": "responsePart"},
-                }
-                await websocket.send_json(mark_event)
-                mark_queue.append("responsePart")
-
-        async def handle_openai_ws():
-            nonlocal response_start_timestamp_twilio, last_assistant_item, latest_media_timestamp
+        # Handle OpenAI messages
+        async def handle_openai_messages():
+            nonlocal latest_media_timestamp, last_assistant_item, response_start_timestamp_twilio
             async for message in openai_ws:
                 response = json.loads(message)
 
@@ -413,12 +426,8 @@ async def media_stream(websocket: WebSocket):
                     print(f"Received event: {response['type']}", response)
 
                 if response.get("type") == "response.audio.delta" and response.get("delta"):
-                    audio_delta = {
-                        "event": "media",
-                        "streamSid": stream_sid,
-                        "media": {"payload": response["delta"]},
-                    }
-                    await websocket.send_json(audio_delta)
+                    audio_bytes = base64.b64decode(response["delta"])
+                    audio_interface.output(audio_bytes)
 
                     if not response_start_timestamp_twilio:
                         response_start_timestamp_twilio = latest_media_timestamp
@@ -433,35 +442,30 @@ async def media_stream(websocket: WebSocket):
                 if response.get("type") == "input_audio_buffer.speech_started":
                     await handle_speech_started_event()
 
-        await initialize_session()
-        asyncio.create_task(handle_openai_ws())
-
+        # Start message handlers
+        openai_task = asyncio.create_task(handle_openai_messages())
+        
+        # Handle Twilio messages
         while True:
             data = await websocket.receive_json()
+            await audio_interface.handle_twilio_message(data)
             if data.get("event") == "media":
                 latest_media_timestamp = data["media"]["timestamp"]
                 if SHOW_TIMING_MATH:
                     print(f"Media timestamp: {latest_media_timestamp}ms")
-                audio_append = {
-                    "type": "input_audio_buffer.append",
-                    "audio": data["media"]["payload"],
-                }
-                await openai_ws.send(json.dumps(audio_append))
-            elif data.get("event") == "start":
-                stream_sid = data["start"]["streamSid"]
-                print("Stream started:", stream_sid)
-                response_start_timestamp_twilio = None
-                latest_media_timestamp = 0
-            elif data.get("event") == "mark":
-                if mark_queue:
-                    mark_queue.pop(0)
+
+        await openai_task
 
     except WebSocketDisconnect:
         print("Client disconnected")
-        await openai_ws.close()
+        if openai_ws:
+            await openai_ws.close()
     except Exception as e:
         print(f"Error: {e}")
-        await openai_ws.close()
+        if openai_ws:
+            await openai_ws.close()
+    finally:
+        audio_interface.stop()
 
 @app.websocket("/elevenlabs/media-stream")
 async def handle_media_stream(websocket: WebSocket):
