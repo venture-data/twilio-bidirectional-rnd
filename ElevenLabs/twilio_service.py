@@ -297,13 +297,16 @@ class TwilioAudioInterface(AudioInterface):
     def output(self, audio: bytes):
         """
         Called by ElevenLabs whenever TTS audio is generated.
-        We immediately forward that audio to Twilio over our WebSocket.
+        Split into chunks and enqueue for mixing with background.
         """
-        # Stream it straight away (no queue) in a background task:
-        asyncio.run_coroutine_threadsafe(
-            self._send_audio_chunk(audio),
-            self.loop
-        )
+        # Split audio into chunk_size pieces
+        for i in range(0, len(audio), self.chunk_size):
+            chunk = audio[i:i+self.chunk_size]
+            # Schedule chunk to be added to the queue
+            asyncio.run_coroutine_threadsafe(
+                self.ai_audio_queue.put(chunk),
+                self.loop
+            )
 
     async def _send_audio_chunk(self, audio: bytes):
         """
