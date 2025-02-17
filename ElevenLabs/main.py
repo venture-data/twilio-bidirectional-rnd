@@ -304,6 +304,8 @@ async def media_stream(websocket: WebSocket):
     print("Client connected")
 
     audio_interface = TwilioAudioInterface(websocket)
+    audio_interface.load_background_noise('call-center-youtube-01.ulaw')
+    
     openai_ws = None
     latest_media_timestamp = 0
     last_assistant_item = None
@@ -403,6 +405,7 @@ async def media_stream(websocket: WebSocket):
                 # Extract parameters from Twilio start event
                 name = audio_interface.customParameters.get("name", "DefaultName")
                 print(f"Call started with parameters - Name: {name}")
+                await audio_interface.start_background_stream() 
                 break
 
         # Connect to OpenAI after getting parameters
@@ -477,6 +480,7 @@ async def media_stream(websocket: WebSocket):
         if openai_ws:
             await openai_ws.close()
     finally:
+        await audio_interface.stop_background_stream()  
         audio_interface.stop()
 
 @app.websocket("/elevenlabs/media-stream")
