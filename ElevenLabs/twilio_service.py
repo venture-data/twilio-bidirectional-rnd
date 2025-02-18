@@ -217,8 +217,7 @@ class TwilioAudioInterface(AudioInterface):
 
                 # 3) Send AI audio if present, otherwise background/silence
                 if ai_chunk:
-                    # Send only AI audio without background mixing
-                    mixed_audio = ai_chunk
+                    mixed_audio = self.mix_chunks(bg_chunk, ai_chunk)
                 else:
                     # Send background/silence
                     mixed_audio = bg_chunk
