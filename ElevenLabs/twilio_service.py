@@ -206,25 +206,27 @@ class TwilioAudioInterface(AudioInterface):
                 # 1) Get background chunk or silence
                 if self.background_noise:
                     bg_chunk = self._get_background_chunk(self.chunk_size)
-                    # Optionally adjust background volume
+                    # Adjust background volume
                     bg_chunk = self._adjust_volume(bg_chunk, self.background_volume)
                 else:
-                    # Generate 160 bytes of mu-law silence (0xFF is silence in G.711 u-law)
+                    # Generate silence (mu-law 0xFF)
                     bg_chunk = b'\xFF' * self.chunk_size
 
-                # 2) Check for AI audio to mix
+                # 2) Check for AI audio to send
                 ai_chunk = await self._get_ai_chunk()
 
-                # 3) Mix or just use background if no AI chunk
+                # 3) Send AI audio if present, otherwise background/silence
                 if ai_chunk:
-                    mixed_audio = self.mix_chunks(bg_chunk, ai_chunk)
+                    # Send only AI audio without background mixing
+                    mixed_audio = ai_chunk
                 else:
+                    # Send background/silence
                     mixed_audio = bg_chunk
 
                 # 4) Send the final chunk to Twilio
                 await self.send_audio_to_twilio(mixed_audio)
 
-                # Sleep ~20ms to maintain real-time pacing
+                # Maintain real-time pacing (~20ms chunks)
                 await asyncio.sleep(0.02)
             except Exception as e:
                 print(f"Error in background stream: {str(e)}")
@@ -289,10 +291,14 @@ class TwilioAudioInterface(AudioInterface):
         self.running = False
 
     def interrupt(self):
-        """
-        (Optional) Called when the ElevenLabs agent wants to interrupt user speech.
-        """
+        # Send clear event to Twilio immediately
         asyncio.run_coroutine_threadsafe(self._send_clear_message(), self.loop)
+        # Flush any queued TTS audio so it doesn't get played later
+        while not self.ai_audio_queue.empty():
+            try:
+                self.ai_audio_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
 
     def output(self, audio: bytes):
         """
