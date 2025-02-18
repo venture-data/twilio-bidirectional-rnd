@@ -320,6 +320,7 @@ async def media_stream(websocket: WebSocket):
         "Never repeat the user's own words back to them. "
         "Use the knowledge base to provide more information about the company when asked Remember to talk in Urdu. "
         "You will always respond in Urdu. "
+        "Speak quickly."
     )
 
     async def initialize_session():
