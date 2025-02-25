@@ -35,7 +35,8 @@ from elevenlabs import (
     ConversationInitiationClientDataConfig,
     ConversationConfigClientOverrideConfig,
     AgentConfigOverrideConfig,
-    PromptAgentOverrideConfig
+    PromptAgentOverrideConfig,
+    TtsConversationalConfigOverrideConfig
 )
 
 from twilio_service import TwilioAudioInterface, TwilioService, RecordingsHandler
@@ -658,6 +659,9 @@ async def create_agent(request: CreateAgentRequest):
                     ),
                     first_message=True,
                     language=True
+                ),
+                tts=TtsConversationalConfigOverrideConfig(
+                    voice_id=True
                 )
             )
         )
