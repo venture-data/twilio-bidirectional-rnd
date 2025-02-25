@@ -589,7 +589,7 @@ class CreateAgentRequest(BaseModel):
     llm: Optional[LLMOptions] = LLMOptions.GPT4O_MINI
     voice_id: Optional[str] = "2BJW5coyhAzSr8STdHbE" 
     language: Optional[str] = "en"
-    # model_id: Optional[str] = "eleven_turbo_v2_5"
+    model_id: Optional[str] = "eleven_flash_v2_5"
     stability: Optional[float] = 0.5
     similarity_boost: Optional[float] = 0.8
 
@@ -639,7 +639,8 @@ async def create_agent(request: CreateAgentRequest):
         voice_id=request.voice_id,
         agent_output_audio_format='ulaw_8000',
         stability=request.stability,
-        similarity_boost=request.similarity_boost
+        similarity_boost=request.similarity_boost,
+        model_id=request.model_id
     )
 
     agend_coinfig = ConversationalConfig(
