@@ -59,7 +59,7 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 
-VOICE = "alloy" # verse, alloy, 
+VOICE = "alloy" # verse, alloy, Ash, Ballad, Coral, Sage
 LOG_EVENT_TYPES = [
     "error",
     "response.content.done",
