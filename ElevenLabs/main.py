@@ -129,7 +129,7 @@ class OutBoundRequest(BaseModel):
     # language: Optional[str] = "english"
     # agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = "http://localhost:8000/twilio/twiml"
+    twilio_call_url: Optional[str] = "http://127.0.0.1:8000/twilio/twiml"
     recording_callback_url: Optional[str] =  None # f"https://{BASE_URL}/twilio/recording-call-back"
     status_callback_url: Optional[str] = None # f"https://{BASE_URL}/twilio/call-status"
 
@@ -142,7 +142,7 @@ async def initiate_outbound_call(request: OutBoundRequest):
     to_number = request.to
     from_number = request.from_
     twiml_url = request.twilio_call_url
-    name = request.name
+    # name = request.name
     agent_id = request.agent_id
 
     if not to_number or not from_number:
@@ -204,7 +204,7 @@ async def incoming_call(request: Request):
     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
         <Response>
             <Connect>
-                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
+                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/call/elevenlabs/media-stream">
                     <Parameter name="agent_id" value="{agent_id}" />
                 </Stream>
             </Connect>
