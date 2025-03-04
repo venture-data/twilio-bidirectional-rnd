@@ -124,13 +124,14 @@ async def handle_incoming_call(request: Request):
 
 class OutBoundRequest(BaseModel):
     to: str
-    name: Optional[str] = "Ammar"
-    language: Optional[str] = "english"
-    agent_id: Optional[str] = os.getenv("AGENT_ID")
+    agent_id: str
+    # name: Optional[str] = "Ammar"
+    # language: Optional[str] = "english"
+    # agent_id: Optional[str] = os.getenv("AGENT_ID")
     from_: Optional[str] = "+17753177891" # +15512967933 +12185857512 +17753177891
-    twilio_call_url: Optional[str] = f"https://{BASE_URL}/twilio/twiml"
-    recording_callback_url: Optional[str] = f"https://{BASE_URL}/twilio/recording-call-back"
-    status_callback_url: Optional[str] = f"https://{BASE_URL}/twilio/call-status"
+    twilio_call_url: Optional[str] = "http://localhost:8000/twilio/twiml"
+    recording_callback_url: Optional[str] =  None # f"https://{BASE_URL}/twilio/recording-call-back"
+    status_callback_url: Optional[str] = None # f"https://{BASE_URL}/twilio/call-status"
 
 @app.post("/twilio/outbound_call")
 async def initiate_outbound_call(request: OutBoundRequest):
@@ -150,27 +151,27 @@ async def initiate_outbound_call(request: OutBoundRequest):
     if not twiml_url:
         return {"error": "Missing 'twiml_url'"}
 
-    if name:
-        twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
+    # if name:
+    #     twiml_url = f"{twiml_url}?{urlencode({'name': name})}"
     if agent_id:
         twiml_url = f"{twiml_url}&{urlencode({'agent_id': agent_id})}"
         
-    if request.language == 'urdu':
-        twiml_url = f"{twiml_url}&{urlencode({'agent_provider': 'openai'})}"
+    # if request.language == 'urdu':
+    #     twiml_url = f"{twiml_url}&{urlencode({'agent_provider': 'openai'})}"
 
     call = twilio_client.calls.create(
         record=True,
         to=to_number,
         from_=from_number,
         url=twiml_url,
-        recording_status_callback=request.recording_callback_url,
-        recording_status_callback_event=['completed'],
-        status_callback=request.status_callback_url,
-        status_callback_event=[
-            "queued", "ringing", "in-progress",
-            "canceled", "completed", "failed",
-            "busy", "no-answer"
-        ],
+        # recording_status_callback=request.recording_callback_url,
+        # recording_status_callback_event=['completed'],
+        # status_callback=request.status_callback_url,
+        # status_callback_event=[
+        #     "queued", "ringing", "in-progress",
+        #     "canceled", "completed", "failed",
+        #     "busy", "no-answer"
+        # ],
     )
 
     return {"status": "initiated", "call_sid": call.sid}
@@ -181,25 +182,33 @@ async def incoming_call(request: Request):
     agent_id = request.query_params.get("agent_id", os.getenv("AGENT_ID"))
     agent_provider = request.query_params.get("agent_provider", os.getenv("agent_provider"))
     print(f"Making an outgoing call to: {name}")
-    if agent_provider == 'openai':
-        twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
-            <Response>
-                <Connect>
-                    <Stream url="wss://{BASE_URL}/openai/media-stream">
-                        <Parameter name="name" value="{name}" />
-                    </Stream>
-                </Connect>
-            </Response>"""
-    else:
-        twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
-            <Response>
-                <Connect>
-                    <Stream url="wss://{BASE_URL}/elevenlabs/media-stream">
-                        <Parameter name="name" value="{name}" />
-                        <Parameter name="agent_id" value="{agent_id}" />
-                    </Stream>
-                </Connect>
-            </Response>"""
+    # if agent_provider == 'openai':
+    #     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+    #         <Response>
+    #             <Connect>
+    #                 <Stream url="wss://{BASE_URL}/openai/media-stream">
+    #                     <Parameter name="name" value="{name}" />
+    #                 </Stream>
+    #             </Connect>
+    #         </Response>"""
+    # else:
+    #     twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+    #         <Response>
+    #             <Connect>
+    #                 <Stream url="wss://{BASE_URL}/elevenlabs/media-stream">
+    #                     <Parameter name="name" value="{name}" />
+    #                     <Parameter name="agent_id" value="{agent_id}" />
+    #                 </Stream>
+    #             </Connect>
+    #         </Response>"""
+    twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
+        <Response>
+            <Connect>
+                <Stream url="wss://deadly-adapted-joey.ngrok-free.app/elevenlabs/media-stream">
+                    <Parameter name="agent_id" value="{agent_id}" />
+                </Stream>
+            </Connect>
+        </Response>"""
     return Response(content=twiml_response, media_type="application/xml")
 
 @app.post("/twilio/recording-call-back")
