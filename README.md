@@ -5,6 +5,8 @@
 ### Overview
 This documentation outlines the integration process for making outbound calls using Twilio, connected to real-time conversational AI via OpenAI, and utilizing ElevenLabs for Text-to-Speech (TTS) services. The setup allows dynamic audio streaming over WebSockets and manages cloud storage of call recordings using AWS.
 
+Please refer to the `stable-branch` as the code there runs fine - the main branch was modified for testing convoi later.
+
 ### Directory Structure
 ```
 ./
